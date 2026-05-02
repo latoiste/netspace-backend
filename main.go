@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/latoiste/netspace/db"
-	"github.com/latoiste/netspace/handlers"
+	"github.com/latoiste/netspace/handler"
 )
 
 func main() {
@@ -15,5 +15,5 @@ func main() {
 
 	go db.MonitorDb(dbConn)
 
-	handlers.StartServer()
+	handler.StartServer()
 }
