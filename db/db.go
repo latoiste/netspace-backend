@@ -5,13 +5,17 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	_ "github.com/lib/pq"
 )
 
 func OpenDb(ctx context.Context) *sql.DB {
-	db, err := sql.Open("postgres", "host=127.0.0.1 port=5432 dbname=Netspace user=postgres connect_timeout=10 sslmode=prefer")
+	if os.Getenv("DB_CONN_STRING") == "" {
+		log.Fatal("DB_CONN_STRING key not defined in .env file")
+	}
+	db, err := sql.Open("postgres", os.Getenv("DB_CONN_STRING"))
 
 	if err != nil {
 		log.Fatal("fuck ", err)
@@ -27,11 +31,13 @@ func OpenDb(ctx context.Context) *sql.DB {
 
 func MonitorDb(db *sql.DB) {
 	for {
-		ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		if err := db.PingContext(ctx); err != nil {
 			log.Fatal(err)
 		}
 		time.Sleep(time.Second * 10)
 		log.Print("yay")
+
+		cancel()
 	}
 }
