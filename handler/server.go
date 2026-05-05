@@ -40,6 +40,8 @@ func StartServer() {
 
 func handleWs(hub *model.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Println(err)
@@ -48,17 +50,10 @@ func handleWs(hub *model.Hub) http.HandlerFunc {
 
 		conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 
-		_, msg, err := conn.ReadMessage()
+		var req model.Request
+		err = conn.ReadJSON(&req)
 		if err != nil {
 			log.Println(err)
-			conn.Close()
-			return
-		}
-
-		var req model.Request
-		err = json.Unmarshal(msg, &req)
-		if err != nil {
-			log.Println("Error parsing json", err)
 			conn.Close()
 			return
 		}

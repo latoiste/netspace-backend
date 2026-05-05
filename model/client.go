@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/json"
 	"log"
 	"time"
 
@@ -16,51 +15,53 @@ type Client struct {
 	Age      int
 	Interest []string
 	RoomId   string
+	// logout   chan bool
 }
 
 func NewClient(hub *Hub, conn *websocket.Conn, username string, age int, interest []string) *Client {
 	return &Client{
 		Hub:      hub,
 		conn:     conn,
-		send:     make(chan []byte, 256),
+		send:     make(chan []byte, 512),
 		Username: username,
 		Age:      age,
 		Interest: interest,
 		RoomId:   "",
+		// logout:   make(chan bool),
 	}
 }
 
 // buat ngehandle request dari frontend
 func (c *Client) ReadPump() {
-	defer c.conn.Close()
+	defer func() {
+		log.Println("Connection is clsoed")
+		c.conn.Close()
+	}()
 
 	for {
 		// di sini jadiin timeoutnya infinite dulu,
 		// nanti pake ping pongnya buat ngecek kalo client masih connect ato ngga
 		c.conn.SetReadDeadline(time.Time{})
 
-		msgType, msg, err := c.conn.ReadMessage()
-		if err != nil {
-			log.Println(err)
-			break
-		}
-
-		if msgType != 0x1 {
-			log.Println("MEssage is not json alsdlkasdnsd")
-			continue
-		}
-
 		var req Request
-		err = json.Unmarshal(msg, &req)
+		err := c.conn.ReadJSON(&req)
 		if err != nil {
-			log.Println(err)
-			continue
+			if websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
+				log.Println("Connection is closed normally")
+				break
+			}
+			log.Println("Connection is already closed", err)
+			break
 		}
 
 		switch req.Type {
 		case "join":
 		case "leave":
 		case "logout":
+			c.Hub.Logout <- c
+			close(c.send)
+			// <-c.logout
+			return
 		case "chat":
 		}
 	}

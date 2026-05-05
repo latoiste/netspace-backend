@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"log"
 )
 
@@ -30,32 +31,37 @@ func NewHub() *Hub {
 func (h *Hub) Run() {
 	for {
 		select {
-		case client := <-h.Register:
-			log.Println("Register request: ", client.Username)
-		case client := <-h.Logout:
-			log.Println("Logout request: ", client.Username)
-		case _ = <-h.JoinRoom:
-			log.Printf("Join request received")
-		case _ = <-h.LeaveRoom:
-			log.Printf("Leave request received")
+		case client, ok := <-h.Register:
+			if ok {
+				log.Println("Register request received")
+				h.clients[client] = true
+				fmt.Println(h.clients)
+			}
+		case client, ok := <-h.Logout:
+			if ok {
+				log.Println("Logout request received")
+				delete(h.clients, client)
+				// client.logout <- true
+
+				// TODO: remove dari room, close room kalo tinggal <= 1 org (add timeout dulu ga langsung close room)
+
+			}
+		case req := <-h.JoinRoom:
+			log.Println("Join request received")
+			h.handleJoinRoom(req)
+		case req := <-h.LeaveRoom:
+			log.Println("Leave request received")
+			h.handleLeaveRoom(req)
 		case _ = <-h.Broadcast:
-			log.Printf("broadcast mesasge wow")
+			log.Println("broadcast mesasge wow")
 		}
 	}
 }
 
-func (h *Hub) handleRegister(client *Client) {
+func (h *Hub) handleJoinRoom(request *RoomRequest) {
 
 }
 
-func (h *Hub) handleLogout(client *Client) {
-
-}
-
-func (h *Hub) handleClientJoin(request *RoomRequest) {
-
-}
-
-func (h *Hub) handleClientLeave(request *RoomRequest) {
+func (h *Hub) handleLeaveRoom(request *RoomRequest) {
 
 }
