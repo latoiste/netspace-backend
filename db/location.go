@@ -29,3 +29,18 @@ func (e *Env) LocationBySlug(slug string, ctx context.Context) (*model.Location,
 
 	return &location, nil
 }
+
+func (e *Env) LocationIdBySlug(slug string, ctx context.Context) (int, error) {
+	var id int
+
+	err := e.db.QueryRowContext(ctx,
+		`SELECT id FROM Locations WHERE slug = $1`,
+		slug,
+	).Scan(&id)
+
+	if err != nil {
+		return -1, err
+	}
+
+	return id, nil
+}

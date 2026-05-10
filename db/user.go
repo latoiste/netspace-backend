@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
+	"github.com/latoiste/netspace/api"
 	"github.com/latoiste/netspace/model"
 )
 
@@ -14,7 +16,7 @@ func (e *Env) InsertUser(user model.User, ctx context.Context) error {
 
 	const query = `
 		INSERT INTO Users 
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
 	_, err := db.ExecContext(ctx, query,
@@ -23,6 +25,7 @@ func (e *Env) InsertUser(user model.User, ctx context.Context) error {
 		user.Age,
 		user.Gender,
 		user.Slug,
+		user.LocationId,
 	)
 	if err != nil {
 		return err
@@ -105,15 +108,75 @@ func (e *Env) insertCustomInterest(userId string, interest model.Interest) error
 	return nil
 }
 
-// ('☕', 'Kopi'),
-//   ('🎮', 'Gaming'),
-//   ('📚', 'Buku'),
-//   ('🎵', 'Musik'),
-//   ('🍜', 'Kuliner'),
-//   ('✈️', 'Travel'),
-//   ('💻', 'Tech'),
-//   ('🎨', 'Seni'),
-//   ('🏋️', 'Olahraga'),
-//   ('🎬', 'Film'),
-//   ('📷', 'Fotografi'),
-//   ('🌱', 'Tanaman')
+func (e *Env) GetUserInterests(userId string, ctx context.Context) ([]api.InterestOutput, error) {
+	const query = `
+		SELECT i.emoji, i.label
+		FROM UserInterests ui
+		JOIN Interests i ON i.id = ui.interestId
+		WHERE ui.userId = $1
+
+		UNION ALL
+
+		SELECT uci.emoji, uci.label
+		FROM UserCustomInterests uci
+		WHERE uci.userId = $1
+	`
+
+	interests := make([]api.InterestOutput, 0)
+
+	rows, err := e.db.QueryContext(ctx, query, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var it api.InterestOutput
+		err = rows.Scan(&it.Emoji, &it.Label)
+		if err != nil {
+			return nil, err
+		}
+		interests = append(interests, it)
+	}
+	return interests, nil
+}
+
+func (e *Env) UsersInLocation(locationId int, ctx context.Context) ([]api.UserOutput, error) {
+	const query = `
+		SELECT
+			id,
+			slug,
+			name
+		FROM Users
+		WHERE locationId = $1;
+	`
+
+	userOutput := make([]api.UserOutput, 0)
+
+	rows, err := e.db.QueryContext(ctx, query, locationId)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var user api.UserOutput
+		err = rows.Scan(
+			&user.Id,
+			&user.Slug,
+			&user.Name,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel()
+
+		user.Interests, err = e.GetUserInterests(user.Id, ctx2)
+		if err != nil {
+			return nil, err
+		}
+		userOutput = append(userOutput, user)
+	}
+
+	return userOutput, nil
+}

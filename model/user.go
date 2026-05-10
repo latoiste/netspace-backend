@@ -10,12 +10,13 @@ type Interest struct {
 }
 
 type User struct {
-	Id        string
-	Name      string
-	Slug      string
-	Age       int
-	Gender    string
-	Interests []Interest
+	Id         string
+	LocationId int
+	Name       string
+	Slug       string
+	Age        int
+	Gender     string
+	Interests  []Interest
 }
 
 func GenerateUserId() string {

@@ -32,7 +32,6 @@ func handleCheckin(env *db.Env) http.HandlerFunc {
 			log.Println(err)
 			return
 		}
-		log.Println(reqBody)
 
 		ctx1, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
@@ -40,11 +39,20 @@ func handleCheckin(env *db.Env) http.HandlerFunc {
 		location, err := env.LocationBySlug(reqBody.LocationSlug, ctx1)
 		if err != nil {
 			log.Println(err)
-			// http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		userId := model.GenerateUserId()
+
+		ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		locationId, err := env.LocationIdBySlug(reqBody.LocationSlug, ctx2)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer cancel()
 
 		response := api.CreateUserResponse{
 			UserId: userId,
@@ -55,24 +63,25 @@ func handleCheckin(env *db.Env) http.HandlerFunc {
 		}
 
 		user := model.User{
-			Id:        userId,
-			Name:      reqBody.Name,
-			Age:       reqBody.Age,
-			Gender:    reqBody.Gender,
-			Interests: reqBody.Interests,
-			Slug:      reqBody.Slug,
+			Id:         userId,
+			Name:       reqBody.Name,
+			LocationId: locationId,
+			Age:        reqBody.Age,
+			Gender:     reqBody.Gender,
+			Interests:  reqBody.Interests,
+			Slug:       reqBody.Slug,
 		}
 
-		ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		ctx3, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
-		if err = env.InsertUser(user, ctx2); err != nil {
+		if err = env.InsertUser(user, ctx3); err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 
 		if err = json.NewEncoder(w).Encode(response); err != nil {
 			log.Println(err)
-			// http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}

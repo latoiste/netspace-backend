@@ -41,6 +41,7 @@ func StartServer(env *db.Env) {
 	mux.HandleFunc("/ws", handleWs(hub))
 
 	mux.HandleFunc("/api/locations/{slug}", handleLocation(env))
+	mux.HandleFunc("/api/locations/{slug}/users", handleLocationUsers(env))
 
 	mux.HandleFunc("/api/sessions/check-in", handleCheckin(env))
 
