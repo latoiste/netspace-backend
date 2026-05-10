@@ -1,10 +1,11 @@
-package model
+package chat
 
 import (
 	"log"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/latoiste/netspace/api"
 )
 
 type Client struct {
@@ -43,7 +44,7 @@ func (c *Client) ReadPump() {
 		// nanti pake ping pongnya buat ngecek kalo client masih connect ato ngga
 		c.conn.SetReadDeadline(time.Time{})
 
-		var req Request
+		var req api.WsRequest
 		err := c.conn.ReadJSON(&req)
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {

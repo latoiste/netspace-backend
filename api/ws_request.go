@@ -1,10 +1,10 @@
-package model
+package api
 
 import (
 	"encoding/json"
 )
 
-type Request struct {
+type WsRequest struct {
 	// typenya bisa: "register", "logout", "join", "leave", "chat"
 	Type string `json:"type"`
 

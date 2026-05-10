@@ -9,7 +9,13 @@ import (
 func (e *Env) LocationBySlug(slug string, ctx context.Context) (*model.Location, error) {
 	db := e.db
 
-	row := db.QueryRowContext(ctx, "SELECT slug, name, isActive FROM Location WHERE slug=$1", slug)
+	const query = `
+		SELECT slug, name, isActive
+		FROM Locations 
+		WHERE slug=$1
+	`
+
+	row := db.QueryRowContext(ctx, query, slug)
 
 	var location model.Location
 

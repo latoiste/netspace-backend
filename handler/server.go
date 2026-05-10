@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/latoiste/netspace/api"
+	"github.com/latoiste/netspace/chat"
 	"github.com/latoiste/netspace/db"
-	"github.com/latoiste/netspace/model"
 )
 
 var upgrader = websocket.Upgrader{
@@ -18,15 +19,30 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:      func(r *http.Request) bool { return true },
 }
 
+// nanti pake middleware
+func enableCors(w *http.ResponseWriter, r *http.Request) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		(*w).WriteHeader(http.StatusOK)
+		return
+	}
+}
+
 func StartServer(env *db.Env) {
 	mux := http.NewServeMux()
 
-	hub := model.NewHub()
+	hub := chat.NewHub()
 
 	go hub.Run()
 
 	mux.HandleFunc("/ws", handleWs(hub))
-	mux.HandleFunc("GET /api/locations/{slug}", handleLocation(env))
+
+	mux.HandleFunc("/api/locations/{slug}", handleLocation(env))
+
+	mux.HandleFunc("/api/sessions/check-in", handleCheckin(env))
 
 	server := http.Server{
 		Handler: mux,
@@ -40,7 +56,7 @@ func StartServer(env *db.Env) {
 	}
 }
 
-func handleWs(hub *model.Hub) http.HandlerFunc {
+func handleWs(hub *chat.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
@@ -52,7 +68,7 @@ func handleWs(hub *model.Hub) http.HandlerFunc {
 
 		conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 
-		var req model.Request
+		var req api.WsRequest
 		err = conn.ReadJSON(&req)
 		if err != nil {
 			log.Println(err)
@@ -66,10 +82,10 @@ func handleWs(hub *model.Hub) http.HandlerFunc {
 			return
 		}
 
-		var body model.RegisterBody
+		var body api.RegisterBody
 		err = json.Unmarshal(req.Body, &body)
 
-		client := model.NewClient(
+		client := chat.NewClient(
 			hub,
 			conn,
 			body.Username,

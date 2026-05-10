@@ -1,8 +1,10 @@
-package model
+package chat
 
 import (
 	"fmt"
 	"log"
+
+	"github.com/latoiste/netspace/model"
 )
 
 // hadnles websocket connections manages client and rooms
@@ -13,7 +15,7 @@ type Hub struct {
 	Logout    chan *Client
 	JoinRoom  chan *RoomRequest
 	LeaveRoom chan *RoomRequest
-	Broadcast chan *Message
+	Broadcast chan *model.Message
 }
 
 func NewHub() *Hub {
@@ -24,7 +26,7 @@ func NewHub() *Hub {
 		Logout:    make(chan *Client),
 		JoinRoom:  make(chan *RoomRequest),
 		LeaveRoom: make(chan *RoomRequest),
-		Broadcast: make(chan *Message),
+		Broadcast: make(chan *model.Message),
 	}
 }
 

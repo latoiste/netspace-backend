@@ -3,22 +3,17 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/latoiste/netspace/db"
 )
 
-func enableCors(w *http.ResponseWriter) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-	(*w).Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	(*w).Header().Set("Access-Control-Allow-Headers", "Content-Type")
-}
-
 func handleLocation(env *db.Env) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-		enableCors(&w)
+		// defer r.Body.Close()
+		enableCors(&w, r)
 
 		locationSlug := r.PathValue("slug")
 
@@ -27,12 +22,17 @@ func handleLocation(env *db.Env) http.HandlerFunc {
 
 		location, err := env.LocationBySlug(locationSlug, ctx)
 		if err != nil {
+			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		if err = json.NewEncoder(w).Encode(location); err != nil {
+			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
+		log.Println("Location query success")
 	}
 }
