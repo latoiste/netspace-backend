@@ -13,9 +13,7 @@ import (
 
 func handleLocation(env *db.Env) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// defer r.Body.Close()
-		enableCors(&w, r)
-
+		w.Header().Set("Content-Type", "application/json")
 		locationSlug := r.PathValue("slug")
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
@@ -28,7 +26,6 @@ func handleLocation(env *db.Env) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
 		if err = json.NewEncoder(w).Encode(location); err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -40,8 +37,7 @@ func handleLocation(env *db.Env) http.HandlerFunc {
 
 func handleLocationUsers(env *db.Env) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// get id in slug
-		enableCors(&w, r)
+		w.Header().Set("Content-Type", "application/json")
 		locationSlug := r.PathValue("slug")
 
 		ctx1, cancel := context.WithTimeout(context.Background(), time.Second*2)
@@ -71,7 +67,6 @@ func handleLocationUsers(env *db.Env) http.HandlerFunc {
 			OnlineCount: onlineCount,
 		}
 
-		w.Header().Set("Content-Type", "application/json")
 		if err = json.NewEncoder(w).Encode(response); err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

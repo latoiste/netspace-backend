@@ -16,7 +16,6 @@ import (
 func handleCheckin(env *db.Env) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		enableCors(&w, r)
 		w.Header().Set("Content-Type", "application/json")
 
 		var reqBody api.CreateUserRequest

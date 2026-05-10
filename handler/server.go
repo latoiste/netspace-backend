@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
 	"github.com/latoiste/netspace/api"
 	"github.com/latoiste/netspace/chat"
 	"github.com/latoiste/netspace/db"
+	mw "github.com/latoiste/netspace/middleware"
 )
 
 var upgrader = websocket.Upgrader{
@@ -19,34 +21,29 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:      func(r *http.Request) bool { return true },
 }
 
-// nanti pake middleware
-func enableCors(w *http.ResponseWriter, r *http.Request) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-	(*w).Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	(*w).Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	if r.Method == http.MethodOptions {
-		(*w).WriteHeader(http.StatusOK)
-		return
-	}
-}
-
 func StartServer(env *db.Env) {
-	mux := http.NewServeMux()
-
 	hub := chat.NewHub()
-
 	go hub.Run()
 
-	mux.HandleFunc("/ws", handleWs(hub))
+	r := chi.NewRouter()
 
-	mux.HandleFunc("/api/locations/{slug}", handleLocation(env))
-	mux.HandleFunc("/api/locations/{slug}/users", handleLocationUsers(env))
+	r.Use(mw.Cors)
 
-	mux.HandleFunc("/api/sessions/check-in", handleCheckin(env))
+	r.Get("/ws", handleWs(hub))
+
+	r.Route("/api", func(r chi.Router) {
+		r.Post("/sessions/check-in", handleCheckin(env))
+
+		r.Group(func(r chi.Router) {
+			r.Use(mw.Auth)
+
+			r.Get("/locations/{slug}", handleLocation(env))
+			r.Get("/locations/{slug}/users", handleLocationUsers(env))
+		})
+	})
 
 	server := http.Server{
-		Handler: mux,
+		Handler: r,
 		Addr:    ":" + "8080",
 	}
 
