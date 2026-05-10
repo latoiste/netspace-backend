@@ -11,7 +11,11 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func OpenDb(ctx context.Context) *sql.DB {
+type Env struct {
+	db *sql.DB
+}
+
+func OpenDb(ctx context.Context) *Env {
 	if os.Getenv("DB_CONN_STRING") == "" {
 		log.Fatal("DB_CONN_STRING key not defined in .env file")
 	}
@@ -26,17 +30,17 @@ func OpenDb(ctx context.Context) *sql.DB {
 	}
 	fmt.Println("yay")
 
-	return db
+	return &Env{db: db}
 }
 
-func MonitorDb(db *sql.DB) {
+func (e *Env) MonitorDb() {
+	db := e.db
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		if err := db.PingContext(ctx); err != nil {
 			log.Fatal(err)
 		}
 		time.Sleep(time.Second * 10)
-		log.Print("yay")
 
 		cancel()
 	}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/latoiste/netspace/db"
 	"github.com/latoiste/netspace/model"
 )
 
@@ -17,7 +18,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:      func(r *http.Request) bool { return true },
 }
 
-func StartServer() {
+func StartServer(env *db.Env) {
 	mux := http.NewServeMux()
 
 	hub := model.NewHub()
@@ -25,6 +26,7 @@ func StartServer() {
 	go hub.Run()
 
 	mux.HandleFunc("/ws", handleWs(hub))
+	mux.HandleFunc("GET /api/locations/{slug}", handleLocation(env))
 
 	server := http.Server{
 		Handler: mux,

@@ -16,10 +16,10 @@ func main() {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	dbConn := db.OpenDb(ctx)
+	env := db.OpenDb(ctx)
 	defer cancel()
 
-	go db.MonitorDb(dbConn)
+	go env.MonitorDb()
 
-	handler.StartServer()
+	handler.StartServer(env)
 }
