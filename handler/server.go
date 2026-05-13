@@ -32,15 +32,18 @@ func StartServer(env *db.Env) {
 	r.Get("/ws", handleWs(hub))
 
 	r.Route("/api", func(r chi.Router) {
-		r.Post("/sessions/check-in", handleCheckin(env))
-
-		r.Group(func(r chi.Router) {
-			r.Use(mw.Auth)
-
-			r.Get("/locations/{slug}", handleLocation(env))
-			r.Get("/locations/{slug}/users", handleLocationUsers(env))
-		})
-	})
+    r.Post("/sessions/check-in", handleCheckin(env))
+    r.Group(func(r chi.Router) {
+        r.Use(mw.Auth)
+        r.Get("/locations/{slug}", handleLocation(env))
+        r.Get("/locations/{slug}/users", handleLocationUsers(env))
+    })
+    r.Route("/admin", func(r chi.Router) {
+        r.Get("/sessions", handleGetActiveSessions(env))
+        r.Post("/force-logout/{userId}", handleForceLogout(env))
+        r.Get("/analytics", handleGetAnalytics(env))
+    })
+})
 
 	server := http.Server{
 		Handler: r,
