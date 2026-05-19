@@ -53,19 +53,14 @@ func handleLocationUsers(env *db.Env) http.HandlerFunc {
 		ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
 
-		userOutput, err := env.UsersInLocation(id, ctx2)
+		users, err := env.UsersInLocation(id, ctx2)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		onlineCount := len(userOutput)
-
-		response := api.GetUsersResponse{
-			Users:       userOutput,
-			OnlineCount: onlineCount,
-		}
+		response := api.ConstructGetUsersResponse(users)
 
 		if err = json.NewEncoder(w).Encode(response); err != nil {
 			log.Println(err)

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/latoiste/netspace/api"
 	"github.com/latoiste/netspace/model"
 )
 
@@ -108,21 +107,21 @@ func (e *Env) insertCustomInterest(userId string, interest model.Interest) error
 	return nil
 }
 
-func (e *Env) GetUserInterests(userId string, ctx context.Context) ([]api.InterestOutput, error) {
+func (e *Env) UserInterests(userId string, ctx context.Context) ([]model.Interest, error) {
 	const query = `
-		SELECT i.emoji, i.label
+		SELECT i.id, i.emoji, i.label, false as isCustom
 		FROM UserInterests ui
 		JOIN Interests i ON i.id = ui.interestId
 		WHERE ui.userId = $1
 
 		UNION ALL
 
-		SELECT uci.emoji, uci.label
+		SELECT -1 as id, uci.emoji, uci.label, true as isCustom
 		FROM UserCustomInterests uci
 		WHERE uci.userId = $1
 	`
 
-	interests := make([]api.InterestOutput, 0)
+	interests := make([]model.Interest, 0)
 
 	rows, err := e.db.QueryContext(ctx, query, userId)
 	if err != nil {
@@ -130,8 +129,13 @@ func (e *Env) GetUserInterests(userId string, ctx context.Context) ([]api.Intere
 	}
 
 	for rows.Next() {
-		var it api.InterestOutput
-		err = rows.Scan(&it.Emoji, &it.Label)
+		var it model.Interest
+		err = rows.Scan(
+			&it.Id,
+			&it.Emoji,
+			&it.Label,
+			&it.IsCustom,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -140,17 +144,16 @@ func (e *Env) GetUserInterests(userId string, ctx context.Context) ([]api.Intere
 	return interests, nil
 }
 
-func (e *Env) UsersInLocation(locationId int, ctx context.Context) ([]api.UserOutput, error) {
+func (e *Env) UsersInLocation(locationId int, ctx context.Context) ([]model.User, error) {
 	const query = `
-		SELECT
-			id,
-			slug,
-			name
-		FROM Users
-		WHERE locationId = $1;
+		SELECT u.id, u.name, u.age, u.gender, u.slug, u.locationId
+		FROM Locations l
+		JOIN Users u
+		ON l.Id=u.locationId
+		WHERE locationId=$1;
 	`
 
-	userOutput := make([]api.UserOutput, 0)
+	users := make([]model.User, 0)
 
 	rows, err := e.db.QueryContext(ctx, query, locationId)
 	if err != nil {
@@ -158,11 +161,14 @@ func (e *Env) UsersInLocation(locationId int, ctx context.Context) ([]api.UserOu
 	}
 
 	for rows.Next() {
-		var user api.UserOutput
+		var user model.User
 		err = rows.Scan(
 			&user.Id,
-			&user.Slug,
 			&user.Name,
+			&user.Age,
+			&user.Gender,
+			&user.Slug,
+			&user.LocationId,
 		)
 		if err != nil {
 			return nil, err
@@ -171,12 +177,12 @@ func (e *Env) UsersInLocation(locationId int, ctx context.Context) ([]api.UserOu
 		ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
 
-		user.Interests, err = e.GetUserInterests(user.Id, ctx2)
+		user.Interests, err = e.UserInterests(user.Id, ctx2)
 		if err != nil {
 			return nil, err
 		}
-		userOutput = append(userOutput, user)
+		users = append(users, user)
 	}
 
-	return userOutput, nil
+	return users, nil
 }

@@ -8,8 +8,10 @@ CREATE TABLE Locations (
 );
 
 CREATE TABLE Users (
-	id VARCHAR(10) UNIQUE NOT NULL,
+	id TEXT UNIQUE NOT NULL,
+	locationId INT REFERENCES Locations(id),
 	name VARCHAR(30),
+	slug VARCHAR(30),
 	age INT,
 	gender VARCHAR(6)
 );
@@ -17,17 +19,19 @@ CREATE TABLE Users (
 CREATE TABLE Interests (
 	id SERIAL PRIMARY KEY,
 	emoji TEXT NOT NULL,
-	label TEXT NOT NULL
+	label TEXT NOT NULL,
+	isCustom BOOL DEFAULT FALSE
 );
 
 CREATE TABLE UserInterests (
-	userId VARCHAR(10) REFERENCES Users(id),
+	userId TEXT REFERENCES Users(id),
 	interestId INT REFERENCES Interests(id),
+	isCustom BOOL DEFAULT TRUE,
 	PRIMARY KEY(userId, interestId)
 );
 
 CREATE TABLE UserCustomInterests (
-	userId VARCHAR(10) REFERENCES Users(id),
+	userId TEXT REFERENCES Users(id),
 	emoji TEXT NOT NULL,
 	label TEXT NOT NULL,
 	PRIMARY KEY(userId, label)

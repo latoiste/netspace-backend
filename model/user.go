@@ -11,11 +11,11 @@ type Interest struct {
 
 type User struct {
 	Id         string
-	LocationId int
 	Name       string
-	Slug       string
 	Age        int
 	Gender     string
+	Slug       string
+	LocationId int
 	Interests  []Interest
 }
 
