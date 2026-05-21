@@ -33,14 +33,8 @@ func (m *Manager) StartHub(locationSlug string) error {
 	if !ok {
 		return errors.New("Invalid hub location")
 	}
-	go hub.Run()
+	go hub.run()
+	go hub.broadcastLoop()
+
 	return nil
 }
-
-// func (m *Manager) StopHub(locationSlug string) error {
-// 	hub, ok := m.Hubs[locationSlug]
-// 	if !ok {
-// 		return errors.New("Invalid hub location")
-// 	}
-
-// }

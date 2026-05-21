@@ -26,7 +26,7 @@ func StartServer(env *db.Env) {
 
 	r.Use(mw.Cors)
 
-	r.Get("/ws", handleWs(manager))
+	r.Get("/ws", handleWs(manager, env))
 
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/sessions/check-in", handleCheckin(env))

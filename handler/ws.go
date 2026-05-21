@@ -1,14 +1,17 @@
 package handler
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/latoiste/netspace/auth"
 	"github.com/latoiste/netspace/chat"
+	"github.com/latoiste/netspace/db"
 )
 
-func handleWs(manager *chat.Manager) http.HandlerFunc {
+func handleWs(manager *chat.Manager, env *db.Env) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
@@ -41,15 +44,32 @@ func handleWs(manager *chat.Manager) http.HandlerFunc {
 
 		hub := manager.LocationHub(locationSlug)
 
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel()
+
+		user, err := env.UserById(userId, ctx)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			conn.Close()
+			return
+		}
+
 		client := chat.NewClient(
 			hub,
 			conn,
 			userId,
+			user.Name,
 			locationSlug,
 		)
-		hub.Clients[client] = true
 
-		log.Println("Added new client")
+		err = hub.AddClient(client, user)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			conn.Close()
+			return
+		}
 
 		go client.ReadPump()
 		go client.WritePump()
