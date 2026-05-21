@@ -1,11 +1,35 @@
 package middleware
 
-import "net/http"
+import (
+	"context"
+	"log"
+	"net/http"
+
+	"github.com/latoiste/netspace/auth"
+)
 
 func Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//TODO: implement auth
+		tokenString, err := auth.ExtractTokenFromHeader(r)
+		if err != nil {
+			log.Println(err)
+			return
+		}
 
-		next.ServeHTTP(w, r)
+		token, err := auth.VerifyToken(tokenString)
+		if err != nil || token == nil {
+			log.Println(err)
+			return
+		}
+
+		claim, ok := token.Claims.(*auth.Claim)
+		if !ok {
+			log.Println("Invalid token fields")
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), "UserId", claim.UserId)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

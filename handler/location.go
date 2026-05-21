@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/latoiste/netspace/api"
@@ -61,6 +62,17 @@ func handleLocationUsers(env *db.Env) http.HandlerFunc {
 		}
 
 		response := api.ConstructGetUsersResponse(users)
+
+		userId := r.Context().Value("UserId")
+		if userId == "" {
+			log.Println("No UserId in token")
+			http.Error(w, "No UserId in token", http.StatusInternalServerError)
+			return
+		}
+
+		response.Users = slices.DeleteFunc(response.Users, func(u api.UserOutput) bool {
+			return u.Id == userId
+		})
 
 		if err = json.NewEncoder(w).Encode(response); err != nil {
 			log.Println(err)

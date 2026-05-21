@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/latoiste/netspace/api"
+	"github.com/latoiste/netspace/auth"
 	"github.com/latoiste/netspace/db"
 	"github.com/latoiste/netspace/model"
 )
@@ -43,6 +44,12 @@ func handleCheckin(env *db.Env) http.HandlerFunc {
 		}
 
 		userId := model.GenerateUserId()
+		token, err := auth.GenerateJWT(userId)
+		if err != nil {
+			log.Println("Error generating token", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		locationId, err := env.LocationIdBySlug(reqBody.LocationSlug, ctx2)
@@ -54,9 +61,8 @@ func handleCheckin(env *db.Env) http.HandlerFunc {
 		defer cancel()
 
 		response := api.CreateUserResponse{
-			UserId: userId,
-			// TODO: generate token
-			SessionToken: "wow",
+			UserId:       userId,
+			SessionToken: token,
 			LocationSlug: location.Slug,
 			LocationName: location.Name,
 		}
