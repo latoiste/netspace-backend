@@ -1,8 +1,6 @@
 package api
 
-import (
-	"encoding/json"
-)
+import "encoding/json"
 
 type WsEvent struct {
 	Event string          `json:"event"`
@@ -10,7 +8,7 @@ type WsEvent struct {
 }
 
 type UserJoined struct {
-	User UserOutput `json:"user"`
+	User UserDTO `json:"user"`
 }
 
 type UserLeft struct {

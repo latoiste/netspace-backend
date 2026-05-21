@@ -10,6 +10,40 @@ import (
 	"github.com/latoiste/netspace/model"
 )
 
+func (e *Env) UserById(userId string, ctx context.Context) (*model.User, error) {
+	const query = `
+		SELECT * FROM Users
+		WHERE id=$1
+	`
+
+	row := e.db.QueryRowContext(ctx, query, userId)
+
+	var user model.User
+
+	if err := row.Scan(
+		&user.Id,
+		&user.Name,
+		&user.Age,
+		&user.Gender,
+		&user.Slug,
+		&user.LocationId,
+	); err != nil {
+		return nil, err
+	}
+
+	ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	interests, err := e.UserInterests(userId, ctx2)
+	if err != nil {
+		return nil, err
+	}
+
+	user.Interests = interests
+
+	return &user, nil
+}
+
 func (e *Env) InsertUser(user model.User, ctx context.Context) error {
 	db := e.db
 

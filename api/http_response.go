@@ -10,52 +10,55 @@ type CreateUserResponse struct {
 }
 
 type GetUsersResponse struct {
-	Users       []UserOutput `json:"users"`
-	OnlineCount int          `json:"onlineCount"`
+	Users       []UserDTO `json:"users"`
+	OnlineCount int       `json:"onlineCount"`
 }
 
-type UserOutput struct {
-	Id        string           `json:"id"`
-	Slug      string           `json:"slug"`
-	Name      string           `json:"name"`
-	Emoji     string           `json:"emoji"`
-	Interests []InterestOutput `json:"interests"`
+type UserDTO struct {
+	Id        string        `json:"id"`
+	Slug      string        `json:"slug"`
+	Name      string        `json:"name"`
+	Emoji     string        `json:"emoji"`
+	Interests []InterestDTO `json:"interests"`
 }
 
-type InterestOutput struct {
+type InterestDTO struct {
 	Emoji string `json:"emoji"`
 	Label string `json:"label"`
 }
 
 func ConstructGetUsersResponse(users []model.User) GetUsersResponse {
 	onlineCount := len(users)
-	userOutputs := make([]UserOutput, 0)
+	userDTOs := make([]UserDTO, 0)
 
 	for _, user := range users {
-		var userOutput UserOutput
-		interestsOutputs := make([]InterestOutput, 0)
+		userDTO := ConstructUserDTO(user)
 
-		for _, interest := range user.Interests {
-			interestOutput := InterestOutput{
-				Emoji: interest.Emoji,
-				Label: interest.Label,
-			}
-			interestsOutputs = append(interestsOutputs, interestOutput)
-		}
-
-		userOutput = UserOutput{
-			Id:        user.Id,
-			Slug:      user.Slug,
-			Name:      user.Name,
-			Emoji:     "😮",
-			Interests: interestsOutputs,
-		}
-
-		userOutputs = append(userOutputs, userOutput)
+		userDTOs = append(userDTOs, userDTO)
 	}
 
 	return GetUsersResponse{
-		Users:       userOutputs,
+		Users:       userDTOs,
 		OnlineCount: onlineCount,
+	}
+}
+
+func ConstructUserDTO(user model.User) UserDTO {
+	interestDTOs := make([]InterestDTO, 0, len(user.Interests))
+
+	for _, interest := range user.Interests {
+		interestDTO := InterestDTO{
+			Emoji: interest.Emoji,
+			Label: interest.Label,
+		}
+		interestDTOs = append(interestDTOs, interestDTO)
+	}
+
+	return UserDTO{
+		Id:        user.Id,
+		Slug:      user.Slug,
+		Name:      user.Name,
+		Emoji:     "😮",
+		Interests: interestDTOs,
 	}
 }

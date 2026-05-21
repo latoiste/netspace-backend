@@ -70,7 +70,7 @@ func handleLocationUsers(env *db.Env) http.HandlerFunc {
 			return
 		}
 
-		response.Users = slices.DeleteFunc(response.Users, func(u api.UserOutput) bool {
+		response.Users = slices.DeleteFunc(response.Users, func(u api.UserDTO) bool {
 			return u.Id == userId
 		})
 
