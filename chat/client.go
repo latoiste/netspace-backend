@@ -9,26 +9,22 @@ import (
 )
 
 type Client struct {
-	Hub      *Hub
-	conn     *websocket.Conn
-	send     chan []byte
-	Username string
-	Age      int
-	Interest []string
-	RoomId   string
-	// logout   chan bool
+	Hub          *Hub
+	conn         *websocket.Conn
+	Send         chan []byte
+	UserId       string
+	LocationSlug string
+	RoomId       string
 }
 
-func NewClient(hub *Hub, conn *websocket.Conn, username string, age int, interest []string) *Client {
+func NewClient(hub *Hub, conn *websocket.Conn, userId string, locationSlug string) *Client {
 	return &Client{
-		Hub:      hub,
-		conn:     conn,
-		send:     make(chan []byte, 512),
-		Username: username,
-		Age:      age,
-		Interest: interest,
-		RoomId:   "",
-		// logout:   make(chan bool),
+		Hub:          hub,
+		conn:         conn,
+		Send:         make(chan []byte, 512),
+		UserId:       userId,
+		LocationSlug: locationSlug,
+		RoomId:       "",
 	}
 }
 
@@ -44,7 +40,7 @@ func (c *Client) ReadPump() {
 		// nanti pake ping pongnya buat ngecek kalo client masih connect ato ngga
 		c.conn.SetReadDeadline(time.Time{})
 
-		var req api.WsRequest
+		var req api.WsEvent
 		err := c.conn.ReadJSON(&req)
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
@@ -55,15 +51,8 @@ func (c *Client) ReadPump() {
 			break
 		}
 
-		switch req.Type {
-		case "join":
-		case "leave":
-		case "logout":
-			c.Hub.Logout <- c
-			close(c.send)
-			// <-c.logout
-			return
-		case "chat":
+		switch req.Event {
+
 		}
 	}
 }
