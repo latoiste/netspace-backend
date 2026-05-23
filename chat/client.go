@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"encoding/json"
 	"log"
 	"time"
 
@@ -54,7 +55,22 @@ func (c *Client) ReadPump() {
 		}
 
 		switch req.Event {
+		case "send_message":
+			var data api.SendMessage
+			err := json.Unmarshal(req.Data, &data)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 
+			msg := PrivateMessage{
+				MessageId:   generateMessageId(),
+				SenderId:    c.UserId,
+				RecipientId: data.RecipientId,
+				Message:     data.Message,
+				Timestamp:   time.Now(),
+			}
+			c.Hub.sendPrivateMsg <- msg
 		}
 	}
 }
@@ -79,4 +95,25 @@ func (c *Client) WritePump() {
 		}
 		log.Println("written to client")
 	}
+}
+
+func (c *Client) sendEvent(event string, data any) error {
+	payload, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	wsEvent := api.WsEvent{
+		Event: event,
+		Data:  payload,
+	}
+
+	message, err := json.Marshal(wsEvent)
+	if err != nil {
+		return err
+	}
+
+	c.Send <- message
+
+	return nil
 }

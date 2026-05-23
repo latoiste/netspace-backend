@@ -9,20 +9,23 @@ import (
 )
 
 type Hub struct {
-	Clients    map[*Client]bool
+	Clients    map[string]*Client
 	rooms      map[string]map[*Client]bool
 	Register   chan *Client
 	unregister chan *Client
-	broadcast  chan api.WsEvent
+
+	broadcast      chan api.WsEvent
+	sendPrivateMsg chan PrivateMessage
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		Clients:    make(map[*Client]bool),
-		rooms:      make(map[string]map[*Client]bool),
-		Register:   make(chan *Client),
-		unregister: make(chan *Client),
-		broadcast:  make(chan api.WsEvent),
+		Clients:        make(map[string]*Client),
+		rooms:          make(map[string]map[*Client]bool),
+		Register:       make(chan *Client),
+		unregister:     make(chan *Client),
+		broadcast:      make(chan api.WsEvent),
+		sendPrivateMsg: make(chan PrivateMessage),
 	}
 }
 
@@ -30,9 +33,56 @@ func (h *Hub) run() {
 	for {
 		select {
 		case client := <-h.Register:
-			h.Clients[client] = true
+			h.Clients[client.UserId] = client
 		case client := <-h.unregister:
 			err := h.removeClient(client)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+		case msg := <-h.sendPrivateMsg:
+			sender, ok := h.Clients[msg.SenderId]
+			if !ok {
+				log.Println("Sender id not found")
+				continue
+			}
+
+			recipient, ok := h.Clients[msg.RecipientId]
+			if !ok {
+				log.Println("Recipient id not found")
+				continue
+			}
+
+			newMsg := api.NewMessage{
+				MessageId: msg.MessageId,
+				Message:   msg.Message,
+				Timestamp: msg.Timestamp,
+			}
+
+			msgSent := api.MessageSent{
+				MessageId: msg.MessageId,
+				Timestamp: msg.Timestamp,
+			}
+
+			senderMsg := newMsg
+			senderMsg.IsMine = true
+
+			recipientMsg := newMsg
+			recipientMsg.IsMine = false
+
+			err := recipient.sendEvent("new_message", recipientMsg)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			err = sender.sendEvent("new_message", senderMsg)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			err = sender.sendEvent("message_sent", msgSent)
 			if err != nil {
 				log.Println(err)
 				continue
@@ -44,14 +94,13 @@ func (h *Hub) run() {
 func (h *Hub) broadcastLoop() {
 	for event := range h.broadcast {
 		log.Println("Broadcast received")
-		msg, err := json.Marshal(event)
+		message, err := json.Marshal(event)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
-		for client := range h.Clients {
-			log.Println("hah??")
-			client.Send <- msg
+		for _, client := range h.Clients {
+			client.Send <- message
 		}
 	}
 }
@@ -76,7 +125,7 @@ func (h *Hub) AddClient(client *Client, user *model.User) error {
 }
 
 func (h *Hub) removeClient(client *Client) error {
-	delete(h.Clients, client)
+	delete(h.Clients, client.UserId)
 	close(client.Send)
 
 	userLeft := api.UserLeft{
