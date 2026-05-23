@@ -63,14 +63,23 @@ func (c *Client) ReadPump() {
 				continue
 			}
 
-			msg := PrivateMessage{
+			c.Hub.sendPrivateMsg <- PrivateMessage{
 				MessageId:   generateMessageId(),
 				SenderId:    c.UserId,
 				RecipientId: data.RecipientId,
 				Message:     data.Message,
 				Timestamp:   time.Now(),
 			}
-			c.Hub.sendPrivateMsg <- msg
+		case "typing_start":
+			msg := c.handleTypingRequest(req)
+			if msg != (TypingEvent{}) {
+				c.Hub.typingStart <- msg
+			}
+		case "typing_stop":
+			msg := c.handleTypingRequest(req)
+			if msg != (TypingEvent{}) {
+				c.Hub.typingStop <- msg
+			}
 		}
 	}
 }
@@ -116,4 +125,18 @@ func (c *Client) sendEvent(event string, data any) error {
 	c.Send <- message
 
 	return nil
+}
+
+func (c *Client) handleTypingRequest(req api.WsEvent) TypingEvent {
+	var data api.TypingRequest
+	err := json.Unmarshal(req.Data, &data)
+	if err != nil {
+		log.Println(err)
+		return TypingEvent{}
+	}
+
+	return TypingEvent{
+		senderId:    c.UserId,
+		recipientId: data.RecipientId,
+	}
 }

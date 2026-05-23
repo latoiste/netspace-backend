@@ -32,10 +32,18 @@ type MessageSent struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+type UserTyping struct {
+	UserId string `json:"userId"`
+}
+
 // ======================
 
 // Client -> Server
 type SendMessage struct {
 	RecipientId string `json:"recipientId"`
 	Message     string `json:"message"`
+}
+
+type TypingRequest struct {
+	RecipientId string `json:"recipientId"`
 }

@@ -16,6 +16,8 @@ type Hub struct {
 
 	broadcast      chan api.WsEvent
 	sendPrivateMsg chan PrivateMessage
+	typingStart    chan TypingEvent
+	typingStop     chan TypingEvent
 }
 
 func NewHub() *Hub {
@@ -26,6 +28,8 @@ func NewHub() *Hub {
 		unregister:     make(chan *Client),
 		broadcast:      make(chan api.WsEvent),
 		sendPrivateMsg: make(chan PrivateMessage),
+		typingStart:    make(chan TypingEvent),
+		typingStop:     make(chan TypingEvent),
 	}
 }
 
@@ -87,6 +91,10 @@ func (h *Hub) run() {
 				log.Println(err)
 				continue
 			}
+		case msg := <-h.typingStart:
+			h.notifyTyping("user_typing", msg)
+		case msg := <-h.typingStop:
+			h.notifyTyping("user_stopped_typing", msg)
 		}
 	}
 }
@@ -143,4 +151,22 @@ func (h *Hub) removeClient(client *Client) error {
 		Data:  data,
 	}
 	return nil
+}
+
+func (h *Hub) notifyTyping(event string, msg TypingEvent) {
+	recipient, ok := h.Clients[msg.recipientId]
+	if !ok {
+		log.Println("Recipient not found")
+		return
+	}
+
+	userTyping := api.UserTyping{
+		UserId: msg.senderId,
+	}
+
+	err := recipient.sendEvent(event, userTyping)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 }

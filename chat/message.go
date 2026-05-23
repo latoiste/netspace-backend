@@ -16,6 +16,11 @@ type PrivateMessage struct {
 	Timestamp   time.Time `json:"timestamp"`
 }
 
+type TypingEvent struct {
+	recipientId string
+	senderId    string
+}
+
 func generateMessageId() string {
 	id := uuid.New()
 	return id.String()
