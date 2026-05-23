@@ -7,18 +7,17 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/latoiste/netspace/db"
 	"github.com/latoiste/netspace/model"
 )
 
-func handleGetActiveSessions(env *db.Env) http.HandlerFunc {
+func (h *Handler) handleGetActiveSessions() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 
-		sessions, err := env.GetActiveSessions(ctx)
+		sessions, err := h.repo.GetActiveSessions(ctx)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -35,7 +34,7 @@ func handleGetActiveSessions(env *db.Env) http.HandlerFunc {
 	}
 }
 
-func handleForceLogout(env *db.Env) http.HandlerFunc {
+func (h *Handler) handleForceLogout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
@@ -49,7 +48,7 @@ func handleForceLogout(env *db.Env) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 
-		if err := env.ForceLogoutUser(ctx, userID); err != nil {
+		if err := h.repo.ForceLogoutUser(ctx, userID); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -61,7 +60,7 @@ func handleForceLogout(env *db.Env) http.HandlerFunc {
 	}
 }
 
-func handleGetAnalytics(env *db.Env) http.HandlerFunc {
+func (h *Handler) handleGetAnalytics() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
@@ -76,7 +75,7 @@ func handleGetAnalytics(env *db.Env) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 
-		data, err := env.GetAnalytics(ctx, from, to)
+		data, err := h.repo.GetAnalytics(ctx, from, to)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

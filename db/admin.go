@@ -8,8 +8,8 @@ import (
 	"github.com/lib/pq"
 )
 
-func (e *Env) GetActiveSessions(ctx context.Context) ([]model.ActiveSession, error) {
-	rows, err := e.db.QueryContext(ctx, `
+func (r *Repository) GetActiveSessions(ctx context.Context) ([]model.ActiveSession, error) {
+	rows, err := r.db.QueryContext(ctx, `
 		SELECT user_id, name, age, gender, table_number, interest, current_job, location_id, last_active_at
 		FROM users
 		WHERE status = 'logon'
@@ -42,8 +42,8 @@ func (e *Env) GetActiveSessions(ctx context.Context) ([]model.ActiveSession, err
 	return sessions, nil
 }
 
-func (e *Env) ForceLogoutUser(ctx context.Context, userID int) error {
-	result, err := e.db.ExecContext(ctx, `
+func (r *Repository) ForceLogoutUser(ctx context.Context, userID int) error {
+	result, err := r.db.ExecContext(ctx, `
 		UPDATE users
 		SET status = 'logoff'
 		WHERE user_id = $1 AND status = 'logon'
@@ -63,8 +63,8 @@ func (e *Env) ForceLogoutUser(ctx context.Context, userID int) error {
 	return nil
 }
 
-func (e *Env) GetAnalytics(ctx context.Context, from, to string) ([]model.AnalyticsData, error) {
-	rows, err := e.db.QueryContext(ctx, `
+func (r *Repository) GetAnalytics(ctx context.Context, from, to string) ([]model.AnalyticsData, error) {
+	rows, err := r.db.QueryContext(ctx, `
 		SELECT 
 			DATE(created_at) as date,
 			COUNT(DISTINCT user_id) as active_users,

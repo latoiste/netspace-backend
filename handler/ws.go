@@ -8,17 +8,16 @@ import (
 
 	"github.com/latoiste/netspace/auth"
 	"github.com/latoiste/netspace/chat"
-	"github.com/latoiste/netspace/db"
 )
 
-func handleWs(manager *chat.Manager, env *db.Env) http.HandlerFunc {
+func (h *Handler) handleWs(manager *chat.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		params := r.URL.Query()
 		tokenString := params.Get("token")
 
-		token, err := auth.VerifyToken(tokenString)
+		token, err := h.auth.VerifyToken(tokenString)
 		if err != nil {
 			log.Println("Faield to verify token")
 			http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -47,7 +46,7 @@ func handleWs(manager *chat.Manager, env *db.Env) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
 
-		user, err := env.UserById(userId, ctx)
+		user, err := h.repo.UserById(userId, ctx)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

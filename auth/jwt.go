@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -16,10 +15,17 @@ type Claim struct {
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(userId string) (string, error) {
-	// TODO: move Env struct somewhere else so jwtKey only retrieved once
-	key := os.Getenv("JWT_SECRET_KEY")
+type Auth struct {
+	jwtKey []byte
+}
 
+func NewAuth(jwtKey []byte) *Auth {
+	return &Auth{
+		jwtKey: jwtKey,
+	}
+}
+
+func (a *Auth) GenerateJWT(userId string) (string, error) {
 	claim := Claim{
 		UserId: userId,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -33,21 +39,21 @@ func GenerateJWT(userId string) (string, error) {
 		claim,
 	)
 
-	tokenString, err := token.SignedString([]byte(key))
+	tokenString, err := token.SignedString(a.jwtKey)
 	if err != nil {
 		return "", err
 	}
 	return tokenString, nil
 }
 
-func VerifyToken(tokenString string) (*jwt.Token, error) {
+func (a *Auth) VerifyToken(tokenString string) (*jwt.Token, error) {
 	claims := &Claim{}
 
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Mismatched signing method")
 		}
-		return []byte(os.Getenv("JWT_SECRET_KEY")), nil
+		return a.jwtKey, nil
 	})
 
 	if err != nil {
@@ -61,7 +67,7 @@ func VerifyToken(tokenString string) (*jwt.Token, error) {
 	return token, nil
 }
 
-func ExtractTokenFromHeader(r *http.Request) (string, error) {
+func (a *Auth) ExtractTokenFromHeader(r *http.Request) (string, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		return "", errors.New("Authorization header not given")
