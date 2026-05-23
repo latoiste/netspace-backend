@@ -9,10 +9,9 @@ import (
 	"time"
 
 	"github.com/latoiste/netspace/api"
-	"github.com/latoiste/netspace/db"
 )
 
-func handleLocation(env *db.Env) http.HandlerFunc {
+func (h *Handler) handleLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		locationSlug := r.PathValue("slug")
@@ -20,7 +19,7 @@ func handleLocation(env *db.Env) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
 
-		location, err := env.LocationBySlug(locationSlug, ctx)
+		location, err := h.repo.LocationBySlug(locationSlug, ctx)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -36,7 +35,7 @@ func handleLocation(env *db.Env) http.HandlerFunc {
 	}
 }
 
-func handleLocationUsers(env *db.Env) http.HandlerFunc {
+func (h *Handler) handleLocationUsers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		locationSlug := r.PathValue("slug")
@@ -44,7 +43,7 @@ func handleLocationUsers(env *db.Env) http.HandlerFunc {
 		ctx1, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
 
-		id, err := env.LocationIdBySlug(locationSlug, ctx1)
+		id, err := h.repo.LocationIdBySlug(locationSlug, ctx1)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -54,7 +53,7 @@ func handleLocationUsers(env *db.Env) http.HandlerFunc {
 		ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
 
-		users, err := env.UsersInLocation(id, ctx2)
+		users, err := h.repo.UsersInLocation(id, ctx2)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

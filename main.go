@@ -1,25 +1,19 @@
 package main
 
 import (
-	"context"
-	"log"
-	"time"
-
-	"github.com/joho/godotenv"
-	"github.com/latoiste/netspace/db"
+	"github.com/latoiste/netspace/app"
 	"github.com/latoiste/netspace/handler"
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Fatal(err)
-	}
+	env := app.NewEnv()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	env := db.OpenDb(ctx)
-	defer cancel()
+	handler := handler.NewHandler(
+		env.Repo,
+		env.Auth,
+	)
 
-	go env.MonitorDb()
+	go env.Repo.MonitorDb()
 
-	handler.StartServer(env)
+	handler.StartServer()
 }

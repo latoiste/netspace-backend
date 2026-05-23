@@ -8,7 +8,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
 	"github.com/latoiste/netspace/chat"
-	"github.com/latoiste/netspace/db"
 	mw "github.com/latoiste/netspace/middleware"
 )
 
@@ -19,26 +18,26 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:      func(r *http.Request) bool { return true },
 }
 
-func StartServer(env *db.Env) {
+func (h *Handler) StartServer() {
 	manager := chat.NewManager()
 
 	r := chi.NewRouter()
 
 	r.Use(mw.Cors)
 
-	r.Get("/ws", handleWs(manager, env))
+	r.Get("/ws", h.handleWs(manager))
 
 	r.Route("/api", func(r chi.Router) {
-		r.Post("/sessions/check-in", handleCheckin(env))
-		r.Get("/locations/{slug}", handleLocation(env))
+		r.Post("/sessions/check-in", h.handleCheckin())
+		r.Get("/locations/{slug}", h.handleLocation())
 		r.Group(func(r chi.Router) {
-			r.Use(mw.Auth)
-			r.Get("/locations/{slug}/users", handleLocationUsers(env))
+			r.Use(mw.Auth(h.auth))
+			r.Get("/locations/{slug}/users", h.handleLocationUsers())
 		})
 		r.Route("/admin", func(r chi.Router) {
-			r.Get("/sessions", handleGetActiveSessions(env))
-			r.Post("/force-logout/{userId}", handleForceLogout(env))
-			r.Get("/analytics", handleGetAnalytics(env))
+			r.Get("/sessions", h.handleGetActiveSessions())
+			r.Post("/force-logout/{userId}", h.handleForceLogout())
+			r.Get("/analytics", h.handleGetAnalytics())
 		})
 	})
 

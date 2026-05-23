@@ -11,33 +11,39 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type Env struct {
+type Repository struct {
 	db *sql.DB
 }
 
-func OpenDb(ctx context.Context) *Env {
-	if os.Getenv("DB_CONN_STRING") == "" {
+func NewRepo(db *sql.DB) *Repository {
+	return &Repository{
+		db: db,
+	}
+}
+
+func OpenDb(ctx context.Context) *sql.DB {
+	datasourceName := os.Getenv("DB_CONN_STRING")
+	if datasourceName == "" {
 		log.Fatal("DB_CONN_STRING key not defined in .env file")
 	}
-	db, err := sql.Open("postgres", os.Getenv("DB_CONN_STRING"))
+	db, err := sql.Open("postgres", datasourceName)
 
 	if err != nil {
-		log.Fatal("fuck ", err)
+		log.Fatal(err)
 	}
 
 	if err = db.PingContext(ctx); err != nil {
-		log.Fatal("fuck ", err)
+		log.Fatal(err)
 	}
 	fmt.Println("yay")
 
-	return &Env{db: db}
+	return db
 }
 
-func (e *Env) MonitorDb() {
-	db := e.db
+func (r *Repository) MonitorDb() {
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		if err := db.PingContext(ctx); err != nil {
+		if err := r.db.PingContext(ctx); err != nil {
 			log.Fatal(err)
 		}
 		time.Sleep(time.Second * 10)

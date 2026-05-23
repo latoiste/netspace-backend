@@ -6,8 +6,8 @@ import (
 	"github.com/latoiste/netspace/model"
 )
 
-func (e *Env) LocationBySlug(slug string, ctx context.Context) (*model.Location, error) {
-	db := e.db
+func (r *Repository) LocationBySlug(slug string, ctx context.Context) (*model.Location, error) {
+	db := r.db
 
 	const query = `
 		SELECT slug, name, isActive
@@ -30,10 +30,10 @@ func (e *Env) LocationBySlug(slug string, ctx context.Context) (*model.Location,
 	return &location, nil
 }
 
-func (e *Env) LocationIdBySlug(slug string, ctx context.Context) (int, error) {
+func (r *Repository) LocationIdBySlug(slug string, ctx context.Context) (int, error) {
 	var id int
 
-	err := e.db.QueryRowContext(ctx,
+	err := r.db.QueryRowContext(ctx,
 		`SELECT id FROM Locations WHERE slug = $1`,
 		slug,
 	).Scan(&id)

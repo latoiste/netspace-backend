@@ -10,13 +10,13 @@ import (
 	"github.com/latoiste/netspace/model"
 )
 
-func (e *Env) UserById(userId string, ctx context.Context) (*model.User, error) {
+func (r *Repository) UserById(userId string, ctx context.Context) (*model.User, error) {
 	const query = `
 		SELECT * FROM Users
 		WHERE id=$1
 	`
 
-	row := e.db.QueryRowContext(ctx, query, userId)
+	row := r.db.QueryRowContext(ctx, query, userId)
 
 	var user model.User
 
@@ -34,7 +34,7 @@ func (e *Env) UserById(userId string, ctx context.Context) (*model.User, error) 
 	ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
 
-	interests, err := e.UserInterests(userId, ctx2)
+	interests, err := r.UserInterests(userId, ctx2)
 	if err != nil {
 		return nil, err
 	}
@@ -44,8 +44,8 @@ func (e *Env) UserById(userId string, ctx context.Context) (*model.User, error) 
 	return &user, nil
 }
 
-func (e *Env) InsertUser(user model.User, ctx context.Context) error {
-	db := e.db
+func (r *Repository) InsertUser(user model.User, ctx context.Context) error {
+	db := r.db
 
 	const query = `
 		INSERT INTO Users 
@@ -64,7 +64,7 @@ func (e *Env) InsertUser(user model.User, ctx context.Context) error {
 		return err
 	}
 
-	err = e.insertInterests(user.Id, user.Interests)
+	err = r.insertInterests(user.Id, user.Interests)
 	if err != nil {
 		return err
 	}
@@ -73,24 +73,24 @@ func (e *Env) InsertUser(user model.User, ctx context.Context) error {
 	return nil
 }
 
-func (e *Env) insertInterests(userId string, interests []model.Interest) error {
+func (r *Repository) insertInterests(userId string, interests []model.Interest) error {
 	interestIds := make([]int, 0)
 	for _, interest := range interests {
 		if !interest.IsCustom {
 			interestIds = append(interestIds, interest.Id)
 		} else {
-			if err := e.insertCustomInterest(userId, interest); err != nil {
+			if err := r.insertCustomInterest(userId, interest); err != nil {
 				return err
 			}
 		}
 	}
-	if err := e.insertUserInterests(userId, interestIds); err != nil {
+	if err := r.insertUserInterests(userId, interestIds); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *Env) insertUserInterests(userId string, interestIds []int) error {
+func (r *Repository) insertUserInterests(userId string, interestIds []int) error {
 	if len(interestIds) == 0 {
 		return nil
 	}
@@ -118,17 +118,17 @@ func (e *Env) insertUserInterests(userId string, interestIds []int) error {
         VALUES %s
     `, strings.Join(values, ","))
 
-	_, err := e.db.Exec(query, args...)
+	_, err := r.db.Exec(query, args...)
 	return err
 }
 
-func (e *Env) insertCustomInterest(userId string, interest model.Interest) error {
+func (r *Repository) insertCustomInterest(userId string, interest model.Interest) error {
 	const query = `
         INSERT INTO UserCustomInterests (userId, emoji, label)
         VALUES ($1, $2, $3)
     `
 
-	_, err := e.db.Exec(
+	_, err := r.db.Exec(
 		query,
 		userId,
 		interest.Emoji,
@@ -141,7 +141,7 @@ func (e *Env) insertCustomInterest(userId string, interest model.Interest) error
 	return nil
 }
 
-func (e *Env) UserInterests(userId string, ctx context.Context) ([]model.Interest, error) {
+func (r *Repository) UserInterests(userId string, ctx context.Context) ([]model.Interest, error) {
 	const query = `
 		SELECT i.id, i.emoji, i.label, false as isCustom
 		FROM UserInterests ui
@@ -157,7 +157,7 @@ func (e *Env) UserInterests(userId string, ctx context.Context) ([]model.Interes
 
 	interests := make([]model.Interest, 0)
 
-	rows, err := e.db.QueryContext(ctx, query, userId)
+	rows, err := r.db.QueryContext(ctx, query, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +178,7 @@ func (e *Env) UserInterests(userId string, ctx context.Context) ([]model.Interes
 	return interests, nil
 }
 
-func (e *Env) UsersInLocation(locationId int, ctx context.Context) ([]model.User, error) {
+func (r *Repository) UsersInLocation(locationId int, ctx context.Context) ([]model.User, error) {
 	const query = `
 		SELECT u.id, u.name, u.age, u.gender, u.slug, u.locationId
 		FROM Locations l
@@ -189,7 +189,7 @@ func (e *Env) UsersInLocation(locationId int, ctx context.Context) ([]model.User
 
 	users := make([]model.User, 0)
 
-	rows, err := e.db.QueryContext(ctx, query, locationId)
+	rows, err := r.db.QueryContext(ctx, query, locationId)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +211,7 @@ func (e *Env) UsersInLocation(locationId int, ctx context.Context) ([]model.User
 		ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
 
-		user.Interests, err = e.UserInterests(user.Id, ctx2)
+		user.Interests, err = r.UserInterests(user.Id, ctx2)
 		if err != nil {
 			return nil, err
 		}
