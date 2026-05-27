@@ -15,6 +15,7 @@ type User struct {
 	Age        int
 	Gender     string
 	Slug       string
+	Emoji      string
 	LocationId int
 	Interests  []Interest
 }

@@ -24,6 +24,10 @@ type Hub struct {
 	typingStart    chan api.TypingEvent
 	typingStop     chan api.TypingEvent
 
+	sendPublicMsg     chan model.PublicMessage
+	publicTypingStart chan api.PublicUserTyping
+	publicTypingStop  chan api.PublicUserTyping
+
 	persistPrivateMsg chan model.PrivateMessage
 }
 
@@ -39,6 +43,9 @@ func NewHub(repo *db.Repository, locationId int) *Hub {
 		sendPrivateMsg:    make(chan model.PrivateMessage),
 		typingStart:       make(chan api.TypingEvent),
 		typingStop:        make(chan api.TypingEvent),
+		sendPublicMsg:     make(chan model.PublicMessage),
+		publicTypingStart: make(chan api.PublicUserTyping),
+		publicTypingStop:  make(chan api.PublicUserTyping),
 		persistPrivateMsg: make(chan model.PrivateMessage, 20),
 	}
 }
@@ -119,6 +126,49 @@ func (h *Hub) run() {
 			h.notifyTyping("user_typing", msg)
 		case msg := <-h.typingStop:
 			h.notifyTyping("user_stopped_typing", msg)
+		case msg := <-h.sendPublicMsg:
+			sender, ok := h.Clients[msg.SenderId]
+			if !ok {
+				log.Println("Sender id not found")
+				continue
+			}
+
+			newMsg := api.NewPublicMessage{
+				MessageId:   msg.MessageId,
+				SenderId:    msg.SenderId,
+				SenderName:  sender.Name,
+				SenderEmoji: sender.Emoji,
+				Message:     msg.Message,
+				Timestamp:   msg.Timestamp,
+			}
+
+			senderMsg := newMsg
+			senderMsg.IsMine = true
+
+			otherMsg := newMsg
+			otherMsg.IsMine = false
+
+			//TODO: persist public message
+
+			err := sender.sendEvent("new_public_message", senderMsg)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			for _, client := range h.Clients {
+				if client.UserId != msg.SenderId {
+					err = client.sendEvent("new_public_message", otherMsg)
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+				}
+			}
+		case msg := <-h.publicTypingStart:
+			h.notifyPublicTyping("public_user_typing", msg)
+		case msg := <-h.publicTypingStop:
+			h.notifyPublicTyping("public_user_stopped_typing", msg)
 		}
 	}
 }
@@ -192,5 +242,17 @@ func (h *Hub) notifyTyping(event string, msg api.TypingEvent) {
 	if err != nil {
 		log.Println(err)
 		return
+	}
+}
+
+func (h *Hub) notifyPublicTyping(event string, msg api.PublicUserTyping) {
+	for _, client := range h.Clients {
+		if client.UserId != msg.UserId {
+			err := client.sendEvent(event, msg)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+		}
 	}
 }

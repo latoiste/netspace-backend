@@ -70,6 +70,7 @@ func (h *Handler) handleWs(manager *chat.Manager) http.HandlerFunc {
 			conn,
 			userId,
 			user.Name,
+			"😮",
 			locationSlug,
 		)
 

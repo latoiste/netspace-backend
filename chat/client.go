@@ -16,17 +16,19 @@ type Client struct {
 	Send         chan []byte
 	UserId       string
 	Name         string
+	Emoji        string
 	LocationSlug string
 	RoomId       string
 }
 
-func NewClient(hub *Hub, conn *websocket.Conn, userId string, name string, locationSlug string) *Client {
+func NewClient(hub *Hub, conn *websocket.Conn, userId string, name string, emoji string, locationSlug string) *Client {
 	return &Client{
 		Hub:          hub,
 		conn:         conn,
 		Send:         make(chan []byte, 512),
 		UserId:       userId,
 		Name:         name,
+		Emoji:        emoji,
 		LocationSlug: locationSlug,
 		RoomId:       "",
 	}
@@ -60,7 +62,7 @@ func (c *Client) ReadPump() {
 			var data api.SendMessage
 			err := json.Unmarshal(req.Data, &data)
 			if err != nil {
-				log.Println(err)
+				log.Println("On send_message", err)
 				continue
 			}
 
@@ -81,6 +83,31 @@ func (c *Client) ReadPump() {
 			msg := c.handleTypingRequest(req)
 			if msg != (api.TypingEvent{}) {
 				c.Hub.typingStop <- msg
+			}
+		case "send_public_message":
+			var data api.SendPublicMessage
+			err := json.Unmarshal(req.Data, &data)
+			if err != nil {
+				log.Println("On send_public_message", err)
+				continue
+			}
+
+			c.Hub.sendPublicMsg <- model.PublicMessage{
+				MessageId:  model.GenerateMessageId(),
+				SenderId:   c.UserId,
+				LocationId: c.Hub.locationId,
+				Message:    data.Message,
+				Timestamp:  time.Now().UTC(),
+			}
+		case "public_typing_start":
+			msg := c.handlePublicTypingRequest(req)
+			if msg != (api.PublicUserTyping{}) {
+				c.Hub.publicTypingStart <- msg
+			}
+		case "public_typing_stop":
+			msg := c.handlePublicTypingRequest(req)
+			if msg != (api.PublicUserTyping{}) {
+				c.Hub.publicTypingStop <- msg
 			}
 		}
 	}
@@ -140,5 +167,21 @@ func (c *Client) handleTypingRequest(req api.WsEvent) api.TypingEvent {
 	return api.TypingEvent{
 		SenderId:    c.UserId,
 		RecipientId: data.RecipientId,
+	}
+}
+
+func (c *Client) handlePublicTypingRequest(req api.WsEvent) api.PublicUserTyping {
+	var data api.PublicTypingRequest
+
+	err := json.Unmarshal(req.Data, &data)
+	if err != nil {
+		log.Println(err)
+		return api.PublicUserTyping{}
+	}
+
+	return api.PublicUserTyping{
+		UserId: c.UserId,
+		Name:   c.Name,
+		Emoji:  c.Emoji,
 	}
 }

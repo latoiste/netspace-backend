@@ -27,6 +27,16 @@ type NewMessage struct {
 	IsMine    bool      `json:"isMine"`
 }
 
+type NewPublicMessage struct {
+	MessageId   string    `json:"id"`
+	SenderId    string    `json:"senderId"`
+	SenderName  string    `json:"senderName"`
+	SenderEmoji string    `json:"senderEmoji"`
+	Message     string    `json:"message"`
+	Timestamp   time.Time `json:"timestamp"`
+	IsMine      bool      `json:"isMine"`
+}
+
 type MessageSent struct {
 	MessageId string    `json:"id"`
 	Timestamp time.Time `json:"timestamp"`
@@ -34,6 +44,12 @@ type MessageSent struct {
 
 type UserTyping struct {
 	UserId string `json:"userId"`
+}
+
+type PublicUserTyping struct {
+	UserId string `json:"userId"`
+	Name   string `json:"name"`
+	Emoji  string `json:"emoji"`
 }
 
 type TypingEvent struct {
@@ -51,4 +67,13 @@ type SendMessage struct {
 
 type TypingRequest struct {
 	RecipientId string `json:"recipientId"`
+}
+
+type SendPublicMessage struct {
+	LocationSlug string `json:"locationSlug"`
+	Message      string `json:"message"`
+}
+
+type PublicTypingRequest struct {
+	LocationSlug string `json:"locationSlug"`
 }

@@ -15,6 +15,17 @@ type PrivateMessage struct {
 	Timestamp   time.Time `json:"timestamp"`
 }
 
+type PublicMessage struct {
+	MessageId  string    `json:"messageId"`
+	LocationId int       `json:"locationId"`
+	SenderId   string    `json:"senderId"`
+	Message    string    `json:"message"`
+	Timestamp  time.Time `json:"timestamp"`
+}
+
+type GroupMessage struct {
+}
+
 func GenerateMessageId() string {
 	id := uuid.New()
 	return id.String()
