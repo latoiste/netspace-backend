@@ -41,12 +41,23 @@ func (h *Handler) handleWs(manager *chat.Manager) http.HandlerFunc {
 		userId := claim.UserId
 		locationSlug := params.Get("locationSlug")
 
-		hub := manager.LocationHub(locationSlug)
-
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
 
-		user, err := h.repo.UserById(userId, ctx)
+		locationId, err := h.repo.LocationIdBySlug(locationSlug, ctx)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			conn.Close()
+			return
+		}
+
+		hub := manager.LocationHub(locationSlug, locationId)
+
+		ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel()
+
+		user, err := h.repo.UserById(userId, ctx2)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

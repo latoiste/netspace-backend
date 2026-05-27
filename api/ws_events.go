@@ -36,6 +36,11 @@ type UserTyping struct {
 	UserId string `json:"userId"`
 }
 
+type TypingEvent struct {
+	SenderId    string `json:"senderId"`
+	RecipientId string `json:"recipientId"`
+}
+
 // ======================
 
 // Client -> Server

@@ -1,4 +1,4 @@
-package chat
+package model
 
 import (
 	"time"
@@ -6,7 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// chat message
 type PrivateMessage struct {
 	MessageId   string    `json:"messageId"`
 	LocationId  int       `json:"locationId"`
@@ -16,12 +15,7 @@ type PrivateMessage struct {
 	Timestamp   time.Time `json:"timestamp"`
 }
 
-type TypingEvent struct {
-	recipientId string
-	senderId    string
-}
-
-func generateMessageId() string {
+func GenerateMessageId() string {
 	id := uuid.New()
 	return id.String()
 }

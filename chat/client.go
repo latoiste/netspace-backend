@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/latoiste/netspace/api"
+	"github.com/latoiste/netspace/model"
 )
 
 type Client struct {
@@ -63,21 +64,22 @@ func (c *Client) ReadPump() {
 				continue
 			}
 
-			c.Hub.sendPrivateMsg <- PrivateMessage{
-				MessageId:   generateMessageId(),
+			c.Hub.sendPrivateMsg <- model.PrivateMessage{
+				MessageId:   model.GenerateMessageId(),
+				LocationId:  c.Hub.locationId,
 				SenderId:    c.UserId,
 				RecipientId: data.RecipientId,
 				Message:     data.Message,
-				Timestamp:   time.Now(),
+				Timestamp:   time.Now().UTC(),
 			}
 		case "typing_start":
 			msg := c.handleTypingRequest(req)
-			if msg != (TypingEvent{}) {
+			if msg != (api.TypingEvent{}) {
 				c.Hub.typingStart <- msg
 			}
 		case "typing_stop":
 			msg := c.handleTypingRequest(req)
-			if msg != (TypingEvent{}) {
+			if msg != (api.TypingEvent{}) {
 				c.Hub.typingStop <- msg
 			}
 		}
@@ -127,16 +129,16 @@ func (c *Client) sendEvent(event string, data any) error {
 	return nil
 }
 
-func (c *Client) handleTypingRequest(req api.WsEvent) TypingEvent {
+func (c *Client) handleTypingRequest(req api.WsEvent) api.TypingEvent {
 	var data api.TypingRequest
 	err := json.Unmarshal(req.Data, &data)
 	if err != nil {
 		log.Println(err)
-		return TypingEvent{}
+		return api.TypingEvent{}
 	}
 
-	return TypingEvent{
-		senderId:    c.UserId,
-		recipientId: data.RecipientId,
+	return api.TypingEvent{
+		SenderId:    c.UserId,
+		RecipientId: data.RecipientId,
 	}
 }

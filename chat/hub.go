@@ -1,39 +1,61 @@
 package chat
 
 import (
+	"context"
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/latoiste/netspace/api"
+	"github.com/latoiste/netspace/db"
 	"github.com/latoiste/netspace/model"
 )
 
 type Hub struct {
 	Clients    map[string]*Client
+	repo       *db.Repository
 	rooms      map[string]map[*Client]bool
 	Register   chan *Client
 	unregister chan *Client
+	locationId int
 
 	broadcast      chan api.WsEvent
-	sendPrivateMsg chan PrivateMessage
-	typingStart    chan TypingEvent
-	typingStop     chan TypingEvent
+	sendPrivateMsg chan model.PrivateMessage
+	typingStart    chan api.TypingEvent
+	typingStop     chan api.TypingEvent
+
+	persistPrivateMsg chan model.PrivateMessage
 }
 
-func NewHub() *Hub {
+func NewHub(repo *db.Repository, locationId int) *Hub {
 	return &Hub{
-		Clients:        make(map[string]*Client),
-		rooms:          make(map[string]map[*Client]bool),
-		Register:       make(chan *Client),
-		unregister:     make(chan *Client),
-		broadcast:      make(chan api.WsEvent),
-		sendPrivateMsg: make(chan PrivateMessage),
-		typingStart:    make(chan TypingEvent),
-		typingStop:     make(chan TypingEvent),
+		Clients:           make(map[string]*Client),
+		locationId:        locationId,
+		repo:              repo,
+		rooms:             make(map[string]map[*Client]bool),
+		Register:          make(chan *Client),
+		unregister:        make(chan *Client),
+		broadcast:         make(chan api.WsEvent),
+		sendPrivateMsg:    make(chan model.PrivateMessage),
+		typingStart:       make(chan api.TypingEvent),
+		typingStop:        make(chan api.TypingEvent),
+		persistPrivateMsg: make(chan model.PrivateMessage, 20),
 	}
 }
 
 func (h *Hub) run() {
+	go func() {
+		for msg := range h.persistPrivateMsg {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+
+			err := h.repo.InsertPrivateMessage(msg, ctx)
+			if err != nil {
+				log.Println(err)
+			}
+			cancel()
+		}
+	}()
+
 	for {
 		select {
 		case client := <-h.Register:
@@ -73,6 +95,8 @@ func (h *Hub) run() {
 
 			recipientMsg := newMsg
 			recipientMsg.IsMine = false
+
+			h.persistPrivateMsg <- msg
 
 			err := recipient.sendEvent("new_message", recipientMsg)
 			if err != nil {
@@ -153,15 +177,15 @@ func (h *Hub) removeClient(client *Client) error {
 	return nil
 }
 
-func (h *Hub) notifyTyping(event string, msg TypingEvent) {
-	recipient, ok := h.Clients[msg.recipientId]
+func (h *Hub) notifyTyping(event string, msg api.TypingEvent) {
+	recipient, ok := h.Clients[msg.RecipientId]
 	if !ok {
 		log.Println("Recipient not found")
 		return
 	}
 
 	userTyping := api.UserTyping{
-		UserId: msg.senderId,
+		UserId: msg.SenderId,
 	}
 
 	err := recipient.sendEvent(event, userTyping)

@@ -19,14 +19,12 @@ CREATE TABLE Users (
 CREATE TABLE Interests (
 	id SERIAL PRIMARY KEY,
 	emoji TEXT NOT NULL,
-	label TEXT NOT NULL,
-	isCustom BOOL DEFAULT FALSE
+	label TEXT NOT NULL
 );
 
 CREATE TABLE UserInterests (
 	userId TEXT REFERENCES Users(id),
 	interestId INT REFERENCES Interests(id),
-	isCustom BOOL DEFAULT TRUE,
 	PRIMARY KEY(userId, interestId)
 );
 
@@ -35,6 +33,15 @@ CREATE TABLE UserCustomInterests (
 	emoji TEXT NOT NULL,
 	label TEXT NOT NULL,
 	PRIMARY KEY(userId, label)
+);
+
+CREATE TABLE PrivateMessage (
+	messageid TEXT NOT NULL,
+	locationId INT REFERENCES Locations(id),
+	senderId TEXT REFERENCES Users(id),
+	recipientId TEXT REFERENCES Users(id),
+	"message" TEXT NOT NULL,
+	"timestamp" TIMESTAMPTZ
 );
 
 INSERT INTO Interests (emoji, label)
@@ -50,7 +57,5 @@ VALUES ('☕', 'Kopi'),
   ('🎬', 'Film'),
   ('📷', 'Fotografi'),
   ('🌱', 'Tanaman');
-
-SELECT * FROM Interests;
 
 SELECT * FROM Users;

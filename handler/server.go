@@ -19,7 +19,7 @@ var upgrader = websocket.Upgrader{
 }
 
 func (h *Handler) StartServer() {
-	manager := chat.NewManager()
+	manager := chat.NewManager(h.repo)
 
 	r := chi.NewRouter()
 
