@@ -36,10 +36,18 @@ CREATE TABLE UserCustomInterests (
 );
 
 CREATE TABLE PrivateMessage (
-	messageid TEXT NOT NULL,
+	messageid TEXT PRIMARY KEY NOT NULL,
 	locationId INT REFERENCES Locations(id),
 	senderId TEXT REFERENCES Users(id),
 	recipientId TEXT REFERENCES Users(id),
+	"message" TEXT NOT NULL,
+	"timestamp" TIMESTAMPTZ
+);
+
+CREATE TABLE PublicMessage (
+	messageId  TEXT PRIMARY KEY NOT NULL,
+	locationId INT REFERENCES Locations(id),
+	senderId   TEXT REFERENCES Users(id),
 	"message" TEXT NOT NULL,
 	"timestamp" TIMESTAMPTZ
 );

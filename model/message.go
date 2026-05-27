@@ -7,20 +7,20 @@ import (
 )
 
 type PrivateMessage struct {
-	MessageId   string    `json:"messageId"`
-	LocationId  int       `json:"locationId"`
-	SenderId    string    `json:"senderId"`
-	RecipientId string    `json:"recipientId"`
-	Message     string    `json:"message"`
-	Timestamp   time.Time `json:"timestamp"`
+	MessageId   string
+	LocationId  int
+	SenderId    string
+	RecipientId string
+	Message     string
+	Timestamp   time.Time
 }
 
 type PublicMessage struct {
-	MessageId  string    `json:"messageId"`
-	LocationId int       `json:"locationId"`
-	SenderId   string    `json:"senderId"`
-	Message    string    `json:"message"`
-	Timestamp  time.Time `json:"timestamp"`
+	MessageId  string
+	LocationId int
+	SenderId   string
+	Message    string
+	Timestamp  time.Time
 }
 
 type GroupMessage struct {

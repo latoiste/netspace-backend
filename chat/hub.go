@@ -29,6 +29,7 @@ type Hub struct {
 	publicTypingStop  chan api.PublicUserTyping
 
 	persistPrivateMsg chan model.PrivateMessage
+	persistPublicMsg  chan model.PublicMessage
 }
 
 func NewHub(repo *db.Repository, locationId int) *Hub {
@@ -47,21 +48,13 @@ func NewHub(repo *db.Repository, locationId int) *Hub {
 		publicTypingStart: make(chan api.PublicUserTyping),
 		publicTypingStop:  make(chan api.PublicUserTyping),
 		persistPrivateMsg: make(chan model.PrivateMessage, 20),
+		persistPublicMsg:  make(chan model.PublicMessage, 20),
 	}
 }
 
 func (h *Hub) run() {
-	go func() {
-		for msg := range h.persistPrivateMsg {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-
-			err := h.repo.InsertPrivateMessage(msg, ctx)
-			if err != nil {
-				log.Println(err)
-			}
-			cancel()
-		}
-	}()
+	go h.persistPrivateMsgLoop()
+	go h.persistPublicMsgLoop()
 
 	for {
 		select {
@@ -148,7 +141,7 @@ func (h *Hub) run() {
 			otherMsg := newMsg
 			otherMsg.IsMine = false
 
-			//TODO: persist public message
+			h.persistPublicMsg <- msg
 
 			err := sender.sendEvent("new_public_message", senderMsg)
 			if err != nil {
@@ -184,6 +177,30 @@ func (h *Hub) broadcastLoop() {
 		for _, client := range h.Clients {
 			client.Send <- message
 		}
+	}
+}
+
+func (h *Hub) persistPrivateMsgLoop() {
+	for msg := range h.persistPrivateMsg {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+
+		err := h.repo.InsertPrivateMessage(msg, ctx)
+		if err != nil {
+			log.Println(err)
+		}
+		cancel()
+	}
+}
+
+func (h *Hub) persistPublicMsgLoop() {
+	for msg := range h.persistPublicMsg {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+
+		err := h.repo.InsertPublicMessage(msg, ctx)
+		if err != nil {
+			log.Println(err)
+		}
+		cancel()
 	}
 }
 
