@@ -33,6 +33,7 @@ type Hub struct {
 	inviteToGroup chan api.InviteToGroup
 	acceptInvite  chan GroupInvite
 	leaveGroup    chan GroupInvite
+	sendGroupMsg  chan model.GroupMessage
 
 	persistPrivateMsg chan model.PrivateMessage
 	persistPublicMsg  chan model.PublicMessage
@@ -56,6 +57,7 @@ func NewHub(repo *db.Repository, locationId int) *Hub {
 		inviteToGroup:     make(chan api.InviteToGroup),
 		acceptInvite:      make(chan GroupInvite),
 		leaveGroup:        make(chan GroupInvite),
+		sendGroupMsg:      make(chan model.GroupMessage),
 		persistPrivateMsg: make(chan model.PrivateMessage, 20),
 		persistPublicMsg:  make(chan model.PublicMessage, 20),
 	}
@@ -247,6 +249,56 @@ func (h *Hub) run() {
 			h.broadcastGroupMemberLeft(group, sender)
 			if len(group.memberIds) <= 1 {
 				// TODO: send group_dissolve
+			}
+		case msg := <-h.sendGroupMsg:
+			sender, ok := h.Clients[msg.SenderId]
+			if !ok {
+				log.Println("Sender id not foudn")
+				continue
+			}
+
+			group, ok := h.groups[msg.GroupId]
+			if !ok {
+				log.Println("Group id not found")
+				continue
+			}
+
+			newMsg := api.NewPublicMessage{
+				MessageId:   msg.MessageId,
+				SenderId:    msg.SenderId,
+				SenderName:  sender.Name,
+				SenderEmoji: sender.Emoji,
+				Message:     msg.Message,
+				Timestamp:   msg.Timestamp,
+			}
+
+			senderMsg := newMsg
+			senderMsg.IsMine = true
+
+			otherMsg := newMsg
+			otherMsg.IsMine = false
+
+			err := sender.sendEvent("new_group_message", senderMsg)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			for memberId := range group.memberIds {
+				if memberId == sender.UserId {
+					continue
+				}
+				client, ok := h.Clients[memberId]
+				if !ok {
+					log.Printf("client %v not found in group %v\n", memberId, group.name)
+					continue
+				}
+				err := client.sendEvent("new_group_message", otherMsg)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+
 			}
 		}
 	}

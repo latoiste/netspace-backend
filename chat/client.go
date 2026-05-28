@@ -118,13 +118,11 @@ func (c *Client) ReadPump() {
 				log.Println("On create_group", err)
 				continue
 			}
-			// add group to hub, check name
 			group, err := c.Hub.createGroup(data.Name, c.UserId, data.MemberIds)
 			if err != nil {
-				log.Println(err)
+				log.Println("On create_group", err)
 				continue
 			}
-			// send back group_created
 			groupCreated := api.GroupCreated{
 				GroupId: group.id,
 				Name:    group.name,
@@ -164,6 +162,24 @@ func (c *Client) ReadPump() {
 			c.Hub.leaveGroup <- GroupInvite{
 				groupId: data.GroupId,
 				userId:  c.UserId,
+			}
+		case "send_group_message":
+			var data api.SendGroupMessage
+			err := json.Unmarshal(req.Data, &data)
+			if err != nil {
+				log.Println("On send_group_message", err)
+				continue
+			}
+
+			c.Hub.sendGroupMsg <- model.GroupMessage{
+				BaseMessage: model.BaseMessage{
+					MessageId:  model.GenerateMessageId(),
+					LocationId: c.Hub.locationId,
+					SenderId:   c.UserId,
+					Message:    data.Message,
+					Timestamp:  time.Now().UTC(),
+				},
+				GroupId: data.GroupId,
 			}
 		}
 	}

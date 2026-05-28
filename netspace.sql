@@ -67,3 +67,5 @@ VALUES ('☕', 'Kopi'),
   ('🌱', 'Tanaman');
 
 SELECT * FROM Users;
+
+SELECT * FROM publicmessage;
