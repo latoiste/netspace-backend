@@ -35,7 +35,7 @@ CREATE TABLE UserCustomInterests (
 	PRIMARY KEY(userId, label)
 );
 
-CREATE TABLE PrivateMessage (
+CREATE TABLE PrivateMessages (
 	messageid TEXT PRIMARY KEY NOT NULL,
 	locationId INT REFERENCES Locations(id),
 	senderId TEXT REFERENCES Users(id),
@@ -44,10 +44,25 @@ CREATE TABLE PrivateMessage (
 	"timestamp" TIMESTAMPTZ
 );
 
-CREATE TABLE PublicMessage (
+CREATE TABLE PublicMessages (
 	messageId  TEXT PRIMARY KEY NOT NULL,
 	locationId INT REFERENCES Locations(id),
 	senderId   TEXT REFERENCES Users(id),
+	"message" TEXT NOT NULL,
+	"timestamp" TIMESTAMPTZ
+);
+
+CREATE TABLE Group (
+	Id TEXT PRIMARY KEY NOT NULL,
+	Name TEXT,
+	IsActive BOOL DEFAULT TRUE	
+);
+
+CREATE TABLE GroupMessages (
+	messageId  TEXT PRIMARY KEY NOT NULL,
+	locationId INT REFERENCES Locations(id),
+	senderId   TEXT REFERENCES Users(id),
+	groupId TEXT REFERENCES Group(id),
 	"message" TEXT NOT NULL,
 	"timestamp" TIMESTAMPTZ
 );

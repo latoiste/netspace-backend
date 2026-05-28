@@ -9,7 +9,7 @@ import (
 
 func (r *Repository) InsertPrivateMessage(privateMsg model.PrivateMessage, ctx context.Context) error {
 	query := `
-		INSERT INTO PrivateMessage (
+		INSERT INTO PrivateMessages (
 			messageid,
 			locationId,
 			senderId,
@@ -40,7 +40,7 @@ func (r *Repository) InsertPrivateMessage(privateMsg model.PrivateMessage, ctx c
 
 func (r *Repository) InsertPublicMessage(publicMsg model.PublicMessage, ctx context.Context) error {
 	query := `
-		INSERT INTO PublicMessage (
+		INSERT INTO PublicMessages (
 			messageId,
 			locationId,
 			senderId,
@@ -61,6 +61,37 @@ func (r *Repository) InsertPublicMessage(publicMsg model.PublicMessage, ctx cont
 	)
 
 	log.Println(result.RowsAffected())
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *Repository) InsertGroupMessage(groupMsg model.GroupMessage, ctx context.Context) error {
+	query := `
+		INSERT INTO GroupMessages (
+			messageid,
+			locationid,
+			senderid,
+			groupid,
+			message,
+			timestamp
+		)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`
+
+	_, err := r.db.ExecContext(
+		ctx,
+		query,
+		groupMsg.MessageId,
+		groupMsg.LocationId,
+		groupMsg.SenderId,
+		groupMsg.GroupId,
+		groupMsg.Message,
+		groupMsg.Timestamp,
+	)
 
 	if err != nil {
 		return err

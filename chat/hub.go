@@ -35,37 +35,46 @@ type Hub struct {
 	leaveGroup    chan GroupInvite
 	sendGroupMsg  chan model.GroupMessage
 
-	persistPrivateMsg chan model.PrivateMessage
-	persistPublicMsg  chan model.PublicMessage
+	persistPrivateMsg    chan model.PrivateMessage
+	persistPublicMsg     chan model.PublicMessage
+	persistGroupMsg      chan model.GroupMessage
+	persistGroup         chan model.Group
+	persistDissolveGroup chan model.Group
 }
 
 func NewHub(repo *db.Repository, locationId int) *Hub {
 	return &Hub{
-		Clients:           make(map[string]*Client),
-		locationId:        locationId,
-		repo:              repo,
-		groups:            make(map[string]*Group),
-		Register:          make(chan *Client),
-		unregister:        make(chan *Client),
-		broadcast:         make(chan api.WsEvent),
-		sendPrivateMsg:    make(chan model.PrivateMessage),
-		typingStart:       make(chan api.TypingEvent),
-		typingStop:        make(chan api.TypingEvent),
-		sendPublicMsg:     make(chan model.PublicMessage),
-		publicTypingStart: make(chan api.PublicUserTyping),
-		publicTypingStop:  make(chan api.PublicUserTyping),
-		inviteToGroup:     make(chan api.InviteToGroup),
-		acceptInvite:      make(chan GroupInvite),
-		leaveGroup:        make(chan GroupInvite),
-		sendGroupMsg:      make(chan model.GroupMessage),
-		persistPrivateMsg: make(chan model.PrivateMessage, 20),
-		persistPublicMsg:  make(chan model.PublicMessage, 20),
+		Clients:              make(map[string]*Client),
+		locationId:           locationId,
+		repo:                 repo,
+		groups:               make(map[string]*Group),
+		Register:             make(chan *Client),
+		unregister:           make(chan *Client),
+		broadcast:            make(chan api.WsEvent),
+		sendPrivateMsg:       make(chan model.PrivateMessage),
+		typingStart:          make(chan api.TypingEvent),
+		typingStop:           make(chan api.TypingEvent),
+		sendPublicMsg:        make(chan model.PublicMessage),
+		publicTypingStart:    make(chan api.PublicUserTyping),
+		publicTypingStop:     make(chan api.PublicUserTyping),
+		inviteToGroup:        make(chan api.InviteToGroup),
+		acceptInvite:         make(chan GroupInvite),
+		leaveGroup:           make(chan GroupInvite),
+		sendGroupMsg:         make(chan model.GroupMessage),
+		persistPrivateMsg:    make(chan model.PrivateMessage, 20),
+		persistPublicMsg:     make(chan model.PublicMessage, 20),
+		persistGroupMsg:      make(chan model.GroupMessage, 20),
+		persistGroup:         make(chan model.Group, 20),
+		persistDissolveGroup: make(chan model.Group),
 	}
 }
 
 func (h *Hub) run() {
 	go h.persistPrivateMsgLoop()
 	go h.persistPublicMsgLoop()
+	go h.persistGroupMsgLoop()
+	go h.persistGroupLoop()
+	go h.persistDissolveGroupLoop()
 
 	for {
 		select {
@@ -275,6 +284,8 @@ func (h *Hub) run() {
 			otherMsg := newMsg
 			otherMsg.IsMine = false
 
+			h.persistGroupMsg <- msg
+
 			err := sender.sendEvent("new_group_message", senderMsg)
 			if err != nil {
 				log.Println(err)
@@ -332,6 +343,42 @@ func (h *Hub) persistPublicMsgLoop() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 
 		err := h.repo.InsertPublicMessage(msg, ctx)
+		if err != nil {
+			log.Println(err)
+		}
+		cancel()
+	}
+}
+
+func (h *Hub) persistGroupMsgLoop() {
+	for msg := range h.persistGroupMsg {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+
+		err := h.repo.InsertGroupMessage(msg, ctx)
+		if err != nil {
+			log.Println(err)
+		}
+		cancel()
+	}
+}
+
+func (h *Hub) persistGroupLoop() {
+	for group := range h.persistGroup {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+
+		err := h.repo.InsertGroup(group, ctx)
+		if err != nil {
+			log.Println(err)
+		}
+		cancel()
+	}
+}
+
+func (h *Hub) persistDissolveGroupLoop() {
+	for group := range h.persistDissolveGroup {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+
+		err := h.repo.UpdateGroupIsActive(group.Id, group.IsActive, ctx)
 		if err != nil {
 			log.Println(err)
 		}
@@ -447,6 +494,12 @@ func (h *Hub) createGroup(groupName string, hostId string, memberIds []string) (
 	group.memberIds[hostId] = true
 	h.groups[groupId] = group
 
+	h.persistGroup <- model.Group{
+		Id:       groupId,
+		Name:     groupName,
+		IsActive: true,
+	}
+
 	return group, nil
 }
 
@@ -469,25 +522,26 @@ func (h *Hub) broadcastGroupMemberLeft(group *Group, leavingClient *Client) {
 	}
 
 	delete(group.memberIds, leavingClient.UserId)
-	fmt.Println(group)
 
 	if len(group.memberIds) <= 1 {
-		log.Println("halo")
 		for memberId := range group.memberIds {
 			client, ok := h.Clients[memberId]
 			if !ok {
-				log.Println("hmm")
 				continue
 			}
 			groupDissolved := api.GroupDissolved{
 				GroupId: group.id,
 			}
 
-			log.Println("yoo")
 			client.sendEvent("group_dissolved", groupDissolved)
 			delete(group.memberIds, memberId)
 		}
-		log.Println("hello?")
 		delete(h.groups, group.id)
+
+		h.persistDissolveGroup <- model.Group{
+			Id:       group.id,
+			Name:     group.name,
+			IsActive: false,
+		}
 	}
 }
