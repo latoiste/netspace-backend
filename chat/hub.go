@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -29,6 +30,10 @@ type Hub struct {
 	publicTypingStart chan api.PublicUserTyping
 	publicTypingStop  chan api.PublicUserTyping
 
+	inviteToGroup chan api.InviteToGroup
+	acceptInvite  chan GroupInvite
+	leaveGroup    chan GroupInvite
+
 	persistPrivateMsg chan model.PrivateMessage
 	persistPublicMsg  chan model.PublicMessage
 }
@@ -48,6 +53,9 @@ func NewHub(repo *db.Repository, locationId int) *Hub {
 		sendPublicMsg:     make(chan model.PublicMessage),
 		publicTypingStart: make(chan api.PublicUserTyping),
 		publicTypingStop:  make(chan api.PublicUserTyping),
+		inviteToGroup:     make(chan api.InviteToGroup),
+		acceptInvite:      make(chan GroupInvite),
+		leaveGroup:        make(chan GroupInvite),
 		persistPrivateMsg: make(chan model.PrivateMessage, 20),
 		persistPublicMsg:  make(chan model.PublicMessage, 20),
 	}
@@ -163,6 +171,83 @@ func (h *Hub) run() {
 			h.notifyPublicTyping("public_user_typing", msg)
 		case msg := <-h.publicTypingStop:
 			h.notifyPublicTyping("public_user_stopped_typing", msg)
+		case msg := <-h.inviteToGroup:
+			// buat group invite nanti
+			_, ok := h.groups[msg.GroupId]
+			if !ok {
+				log.Println("Group not found")
+				continue
+			}
+
+			for _, memberId := range msg.UserIds {
+				_, ok := h.Clients[memberId]
+				if !ok {
+					log.Printf("Failed to send invite to %v, id not found\n", memberId)
+					continue
+				}
+				log.Printf("Sent to %v", memberId)
+				// TODO: send group invite
+			}
+		case invite := <-h.acceptInvite:
+			sender, ok := h.Clients[invite.userId]
+			if !ok {
+				log.Println("Sender not found")
+				continue
+			}
+
+			group, ok := h.groups[invite.groupId]
+			if !ok {
+				log.Println("Group not found")
+				continue
+			}
+
+			_, ok = group.memberIds[sender.UserId]
+			if ok {
+				log.Printf("User %v is trying to join but already in group %v\n", sender.UserId, group.name)
+				continue
+			}
+
+			newMember := api.MemberJoined{
+				Id:     sender.UserId,
+				Name:   sender.Name,
+				Emoji:  sender.Emoji,
+				IsHost: false,
+			}
+
+			for memberId := range group.memberIds {
+				client, ok := h.Clients[memberId]
+				if !ok {
+					log.Printf("Sender id %v not found in group %v\n", memberId, group.name)
+					continue
+				}
+				client.sendEvent("member_joined", newMember)
+			}
+			group.memberIds[sender.UserId] = true
+			log.Println("Member is added to group")
+			fmt.Println(group)
+		case invite := <-h.leaveGroup:
+			sender, ok := h.Clients[invite.userId]
+			if !ok {
+				log.Println("Sender not found")
+				continue
+			}
+
+			group, ok := h.groups[invite.groupId]
+			if !ok {
+				log.Println("Group not found")
+				continue
+			}
+
+			_, ok = group.memberIds[sender.UserId]
+			if !ok {
+				log.Printf("User %v is trying to leave but not in group %v\n", sender.UserId, group.name)
+				continue
+			}
+
+			h.broadcastGroupMemberLeft(group, sender)
+			if len(group.memberIds) <= 1 {
+				// TODO: send group_dissolve
+			}
 		}
 	}
 }
@@ -238,7 +323,13 @@ func (h *Hub) removeClient(client *Client) error {
 		return err
 	}
 
-	// TODO: ilangin dari group waktu udh diimplementasi
+	for _, group := range h.groups {
+		_, ok := group.memberIds[client.UserId]
+		if !ok {
+			continue
+		}
+		h.broadcastGroupMemberLeft(group, client)
+	}
 
 	h.broadcast <- api.WsEvent{
 		Event: "user_left",
@@ -302,9 +393,32 @@ func (h *Hub) createGroup(groupName string, hostId string, memberIds []string) (
 		id:        groupId,
 		name:      groupName,
 		hostId:    hostId,
-		memberIds: make([]string, 0),
+		memberIds: make(map[string]bool),
 	}
+	group.memberIds[hostId] = true
 	h.groups[groupId] = group
 
 	return group, nil
+}
+
+func (h *Hub) broadcastGroupMemberLeft(group *Group, leavingClient *Client) {
+	memberLeft := api.MemberLeft{
+		UserId: leavingClient.UserId,
+		Name:   leavingClient.Name,
+	}
+
+	for memberId := range group.memberIds {
+		if memberId == leavingClient.UserId {
+			continue
+		}
+		client, ok := h.Clients[memberId]
+		if !ok {
+			log.Printf("Sender id not found")
+			continue
+		}
+		client.sendEvent("member_left", memberLeft)
+	}
+
+	delete(group.memberIds, leavingClient.UserId)
+	fmt.Println(group)
 }

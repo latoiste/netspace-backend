@@ -126,3 +126,12 @@ type SendGroupMessage struct {
 type LeaveGroup struct {
 	GroupId string `json:"groupId"`
 }
+
+type InviteToGroup struct {
+	GroupId string   `json:"groupId"`
+	UserIds []string `json:"userIds"`
+}
+
+type GroupInviteResponse struct {
+	GroupId string `json:"groupId"`
+}

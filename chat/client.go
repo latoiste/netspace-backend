@@ -18,7 +18,6 @@ type Client struct {
 	Name         string
 	Emoji        string
 	LocationSlug string
-	RoomId       string
 }
 
 func NewClient(hub *Hub, conn *websocket.Conn, userId string, name string, emoji string, locationSlug string) *Client {
@@ -30,7 +29,6 @@ func NewClient(hub *Hub, conn *websocket.Conn, userId string, name string, emoji
 		Name:         name,
 		Emoji:        emoji,
 		LocationSlug: locationSlug,
-		RoomId:       "",
 	}
 }
 
@@ -132,6 +130,41 @@ func (c *Client) ReadPump() {
 				Name:    group.name,
 			}
 			c.sendEvent("group_created", groupCreated)
+		case "invite_to_group":
+			var data api.InviteToGroup
+			err := json.Unmarshal(req.Data, &data)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			c.Hub.inviteToGroup <- data
+		case "accept_group_invite":
+			var data api.GroupInviteResponse
+			err := json.Unmarshal(req.Data, &data)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			c.Hub.acceptInvite <- GroupInvite{
+				groupId: data.GroupId,
+				userId:  c.UserId,
+			}
+		// case "reject_group_invite":
+		// 	var data api.GroupInviteResponse
+		case "leave_group":
+			var data api.LeaveGroup
+			err := json.Unmarshal(req.Data, &data)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			c.Hub.leaveGroup <- GroupInvite{
+				groupId: data.GroupId,
+				userId:  c.UserId,
+			}
 		}
 	}
 }
