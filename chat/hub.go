@@ -247,9 +247,6 @@ func (h *Hub) run() {
 			}
 
 			h.broadcastGroupMemberLeft(group, sender)
-			if len(group.memberIds) <= 1 {
-				// TODO: send group_dissolve
-			}
 		case msg := <-h.sendGroupMsg:
 			sender, ok := h.Clients[msg.SenderId]
 			if !ok {
@@ -473,4 +470,24 @@ func (h *Hub) broadcastGroupMemberLeft(group *Group, leavingClient *Client) {
 
 	delete(group.memberIds, leavingClient.UserId)
 	fmt.Println(group)
+
+	if len(group.memberIds) <= 1 {
+		log.Println("halo")
+		for memberId := range group.memberIds {
+			client, ok := h.Clients[memberId]
+			if !ok {
+				log.Println("hmm")
+				continue
+			}
+			groupDissolved := api.GroupDissolved{
+				GroupId: group.id,
+			}
+
+			log.Println("yoo")
+			client.sendEvent("group_dissolved", groupDissolved)
+			delete(group.memberIds, memberId)
+		}
+		log.Println("hello?")
+		delete(h.groups, group.id)
+	}
 }
