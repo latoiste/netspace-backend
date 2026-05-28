@@ -6,16 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type PrivateMessage struct {
-	MessageId   string
-	LocationId  int
-	SenderId    string
-	RecipientId string
-	Message     string
-	Timestamp   time.Time
-}
-
-type PublicMessage struct {
+type BaseMessage struct {
 	MessageId  string
 	LocationId int
 	SenderId   string
@@ -23,7 +14,18 @@ type PublicMessage struct {
 	Timestamp  time.Time
 }
 
+type PrivateMessage struct {
+	BaseMessage
+	RecipientId string
+}
+
+type PublicMessage struct {
+	BaseMessage
+}
+
 type GroupMessage struct {
+	BaseMessage
+	GroupId string
 }
 
 func GenerateMessageId() string {

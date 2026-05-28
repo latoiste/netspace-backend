@@ -57,6 +57,41 @@ type TypingEvent struct {
 	RecipientId string `json:"recipientId"`
 }
 
+type NewGroupMessage struct {
+	MessageId   string    `json:"id"`
+	SenderId    string    `json:"senderId"`
+	SenderName  string    `json:"senderName"`
+	SenderEmoji string    `json:"senderEmoji"`
+	Message     string    `json:"message"`
+	Timestamp   time.Time `json:"timestamp"`
+	IsMine      bool      `json:"isMine"`
+}
+
+type GroupCreated struct {
+	GroupId string `json:"groupId"`
+	Name    string `json:"name"`
+}
+
+type GroupCreatedFailed struct {
+	Message string
+}
+
+type MemberJoined struct {
+	Id     string `json:"id"`
+	Name   string `json:"name"`
+	Emoji  string `json:"emoji"`
+	IsHost bool   `json:"isHost"`
+}
+
+type MemberLeft struct {
+	UserId string `json:"userId"`
+	Name   string `json:"name"`
+}
+
+type GroupDissolved struct {
+	GroupId string `json:"groupId"`
+}
+
 // ======================
 
 // Client -> Server
@@ -76,4 +111,18 @@ type SendPublicMessage struct {
 
 type PublicTypingRequest struct {
 	LocationSlug string `json:"locationSlug"`
+}
+
+type CreateGroup struct {
+	Name      string   `json:"name"`
+	MemberIds []string `json:"memberIds"`
+}
+
+type SendGroupMessage struct {
+	GroupId string `json:"groupId"`
+	Message string `json:"message"`
+}
+
+type LeaveGroup struct {
+	GroupId string `json:"groupId"`
 }

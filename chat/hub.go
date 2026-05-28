@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 type Hub struct {
 	Clients    map[string]*Client
 	repo       *db.Repository
-	rooms      map[string]map[*Client]bool
+	groups     map[string]*Group
 	Register   chan *Client
 	unregister chan *Client
 	locationId int
@@ -37,7 +38,7 @@ func NewHub(repo *db.Repository, locationId int) *Hub {
 		Clients:           make(map[string]*Client),
 		locationId:        locationId,
 		repo:              repo,
-		rooms:             make(map[string]map[*Client]bool),
+		groups:            make(map[string]*Group),
 		Register:          make(chan *Client),
 		unregister:        make(chan *Client),
 		broadcast:         make(chan api.WsEvent),
@@ -237,6 +238,8 @@ func (h *Hub) removeClient(client *Client) error {
 		return err
 	}
 
+	// TODO: ilangin dari group waktu udh diimplementasi
+
 	h.broadcast <- api.WsEvent{
 		Event: "user_left",
 		Data:  data,
@@ -272,4 +275,36 @@ func (h *Hub) notifyPublicTyping(event string, msg api.PublicUserTyping) {
 			}
 		}
 	}
+}
+
+func (h *Hub) createGroup(groupName string, hostId string, memberIds []string) (*Group, error) {
+	if _, ok := h.Clients[hostId]; !ok {
+		return nil, errors.New("Invalid host id")
+	}
+
+	for _, group := range h.groups {
+		if group.name == groupName {
+			return nil, errors.New("Group name is taken")
+		}
+	}
+
+	validMemberIds := make([]string, len(memberIds))
+
+	for _, memberId := range memberIds {
+		if _, ok := h.Clients[memberId]; ok {
+			// TODO: send group invite
+			validMemberIds = append(validMemberIds, memberId)
+		}
+	}
+	groupId := GenerateGroupId()
+
+	group := &Group{
+		id:        groupId,
+		name:      groupName,
+		hostId:    hostId,
+		memberIds: make([]string, 0),
+	}
+	h.groups[groupId] = group
+
+	return group, nil
 }
