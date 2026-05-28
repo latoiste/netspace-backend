@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/latoiste/netspace/api"
+	"github.com/latoiste/netspace/model"
 )
 
 func (h *Handler) handleLocation() http.HandlerFunc {
@@ -62,7 +63,15 @@ func (h *Handler) handleLocationUsers() http.HandlerFunc {
 
 		response := api.ConstructGetUsersResponse(users)
 
-		userId := r.Context().Value("UserId")
+		sessionData, ok := r.Context().Value("SessionData").(model.SessionData)
+		if !ok {
+			log.Println("Invalid session data value")
+			http.Error(w, "Invalid session data value", http.StatusUnauthorized)
+			return
+		}
+
+		userId := sessionData.UserId
+
 		if userId == "" {
 			log.Println("No UserId in token")
 			http.Error(w, "No UserId in token", http.StatusInternalServerError)

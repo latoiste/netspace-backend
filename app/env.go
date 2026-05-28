@@ -12,8 +12,9 @@ import (
 )
 
 type Env struct {
-	Repo *db.Repository
-	Auth *auth.Auth
+	Repo      *db.Repository
+	Auth      *auth.Auth
+	Blacklist *auth.Blacklist
 }
 
 func NewEnv() *Env {
@@ -27,11 +28,12 @@ func NewEnv() *Env {
 
 	jwtKey := os.Getenv("JWT_SECRET_KEY")
 
-	auth := auth.NewAuth([]byte(jwtKey))
+	authCredentials := auth.NewAuth([]byte(jwtKey))
 	repo := db.NewRepo(dbConn)
 
 	return &Env{
-		Repo: repo,
-		Auth: auth,
+		Repo:      repo,
+		Auth:      authCredentials,
+		Blacklist: auth.NewBlacklist(),
 	}
 }

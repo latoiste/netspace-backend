@@ -20,6 +20,7 @@ var upgrader = websocket.Upgrader{
 
 func (h *Handler) StartServer() {
 	manager := chat.NewManager(h.repo)
+	mw := mw.NewMiddleware(h.blacklist)
 
 	r := chi.NewRouter()
 
@@ -33,6 +34,7 @@ func (h *Handler) StartServer() {
 		r.Group(func(r chi.Router) {
 			r.Use(mw.Auth(h.auth))
 			r.Get("/locations/{slug}/users", h.handleLocationUsers())
+			r.Get("/sessions/logout", h.handleLogout())
 		})
 		r.Route("/admin", func(r chi.Router) {
 			r.Get("/sessions", h.handleGetActiveSessions())

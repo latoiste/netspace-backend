@@ -11,6 +11,7 @@ func main() {
 	handler := handler.NewHandler(
 		env.Repo,
 		env.Auth,
+		env.Blacklist,
 	)
 
 	go env.Repo.MonitorDb()

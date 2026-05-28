@@ -89,3 +89,19 @@ func (h *Handler) handleCheckin() http.HandlerFunc {
 		}
 	}
 }
+
+func (h *Handler) handleLogout() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		sessionData, ok := r.Context().Value("SessionData").(model.SessionData)
+		if !ok {
+			log.Println("Invalid session data value")
+			http.Error(w, "Invalid session data value", http.StatusUnauthorized)
+			return
+		}
+
+		tokenString := sessionData.TokenString
+		h.blacklist.Add(tokenString)
+	}
+}

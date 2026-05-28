@@ -6,13 +6,15 @@ import (
 )
 
 type Handler struct {
-	repo *db.Repository
-	auth *auth.Auth
+	repo      *db.Repository
+	auth      *auth.Auth
+	blacklist *auth.Blacklist
 }
 
-func NewHandler(repo *db.Repository, auth *auth.Auth) *Handler {
+func NewHandler(repo *db.Repository, auth *auth.Auth, blacklist *auth.Blacklist) *Handler {
 	return &Handler{
-		repo: repo,
-		auth: auth,
+		repo:      repo,
+		auth:      auth,
+		blacklist: blacklist,
 	}
 }
