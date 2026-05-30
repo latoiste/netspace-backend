@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/latoiste/netspace/model"
 )
 
 type WsEvent struct {
@@ -65,6 +67,10 @@ type NewGroupMessage struct {
 	Message     string    `json:"message"`
 	Timestamp   time.Time `json:"timestamp"`
 	IsMine      bool      `json:"isMine"`
+}
+
+type GroupInvite struct {
+	model.Notification
 }
 
 type GroupCreated struct {

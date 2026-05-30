@@ -183,21 +183,33 @@ func (h *Hub) run() {
 		case msg := <-h.publicTypingStop:
 			h.notifyPublicTyping("public_user_stopped_typing", msg)
 		case msg := <-h.inviteToGroup:
-			// buat group invite nanti
-			_, ok := h.groups[msg.GroupId]
+			group, ok := h.groups[msg.GroupId]
 			if !ok {
 				log.Println("Group not found")
 				continue
 			}
 
+			host, ok := h.Clients[group.hostId]
+			if !ok {
+				log.Println("Invalid host id")
+				continue
+			}
+
+			groupInviteNotif := model.NewGroupInviteNotif(
+				host.Emoji,
+				time.Now().UTC(),
+				host.Name,
+				group.name,
+			)
+
 			for _, memberId := range msg.UserIds {
-				_, ok := h.Clients[memberId]
+				client, ok := h.Clients[memberId]
 				if !ok {
 					log.Printf("Failed to send invite to %v, id not found\n", memberId)
 					continue
 				}
 				log.Printf("Sent to %v", memberId)
-				// TODO: send group invite
+				h.sendNotification(client, groupInviteNotif)
 			}
 		case invite := <-h.acceptInvite:
 			sender, ok := h.Clients[invite.userId]
@@ -465,7 +477,8 @@ func (h *Hub) notifyPublicTyping(event string, msg api.PublicUserTyping) {
 }
 
 func (h *Hub) createGroup(groupName string, hostId string, memberIds []string) (*Group, error) {
-	if _, ok := h.Clients[hostId]; !ok {
+	host, ok := h.Clients[hostId]
+	if !ok {
 		return nil, errors.New("Invalid host id")
 	}
 
@@ -475,14 +488,6 @@ func (h *Hub) createGroup(groupName string, hostId string, memberIds []string) (
 		}
 	}
 
-	validMemberIds := make([]string, len(memberIds))
-
-	for _, memberId := range memberIds {
-		if _, ok := h.Clients[memberId]; ok {
-			// TODO: send group invite
-			validMemberIds = append(validMemberIds, memberId)
-		}
-	}
 	groupId := GenerateGroupId()
 
 	group := &Group{
@@ -493,6 +498,19 @@ func (h *Hub) createGroup(groupName string, hostId string, memberIds []string) (
 	}
 	group.memberIds[hostId] = true
 	h.groups[groupId] = group
+
+	groupInviteNotif := model.NewGroupInviteNotif(
+		host.Emoji,
+		time.Now().UTC(),
+		host.Name,
+		groupName,
+	)
+
+	for _, memberId := range memberIds {
+		if client, ok := h.Clients[memberId]; ok {
+			h.sendNotification(client, groupInviteNotif)
+		}
+	}
 
 	h.persistGroup <- model.Group{
 		Id:       groupId,
@@ -543,5 +561,12 @@ func (h *Hub) broadcastGroupMemberLeft(group *Group, leavingClient *Client) {
 			Name:     group.name,
 			IsActive: false,
 		}
+	}
+}
+
+func (h *Hub) sendNotification(sender *Client, notif model.Notification) {
+	err := sender.sendEvent(notif.Type, notif)
+	if err != nil {
+		log.Println(err)
 	}
 }
