@@ -15,19 +15,17 @@ const (
 )
 
 type Notification struct {
-	Id              string `json:"id"`
-	Type            string `json:"type"`
-	Emoji           string `json:"emoji"`
-	AvatarGradient  string `json:"avatarGradient"`
-	Title           string `json:"title"`
-	Description     string `json:"description"`
-	TimestampString string `json:"timestamp"`
-	Unread          bool   `json:"unread"`
-	PrimaryLabel    string `json:"primaryLabel,omitempty"`
-	SecondaryLabel  string `json:"secondaryLabel,omitempty"`
-
-	UserId    string    `json:"-"`
-	Timestamp time.Time `json:"-"`
+	Id             string
+	UserId         string
+	Type           string
+	Emoji          string
+	AvatarGradient string
+	Title          string
+	Timestamp      time.Time
+	Description    string
+	Unread         bool
+	PrimaryLabel   string
+	SecondaryLabel string
 }
 
 func newBaseNotif(
@@ -35,11 +33,10 @@ func newBaseNotif(
 	timestamp time.Time,
 ) Notification {
 	return Notification{
-		Id:              GenerateNotifId(),
-		Emoji:           emoji,
-		Unread:          true,
-		Timestamp:       timestamp,
-		TimestampString: timestamp.Local().Format("15:04"),
+		Id:        GenerateNotifId(),
+		Emoji:     emoji,
+		Unread:    true,
+		Timestamp: timestamp,
 	}
 }
 
@@ -47,17 +44,16 @@ func NewGroupInviteNotif(emoji string, timestamp time.Time, senderName string, g
 	baseNotif := newBaseNotif(emoji, timestamp)
 
 	return Notification{
-		Id:              baseNotif.Id,
-		Emoji:           baseNotif.Emoji,
-		Timestamp:       baseNotif.Timestamp,
-		TimestampString: baseNotif.TimestampString,
-		Unread:          baseNotif.Unread,
-		Type:            GroupInviteNotif.String(),
-		AvatarGradient:  "linear-gradient(135deg, #6366f1, #8b5cf6)",
-		Title:           "Undangan Group Session",
-		Description:     fmt.Sprintf("%v mengundangmu ke \"%v\"", senderName, groupName),
-		PrimaryLabel:    "Gabung",
-		SecondaryLabel:  "Tolak",
+		Id:             baseNotif.Id,
+		Emoji:          baseNotif.Emoji,
+		Timestamp:      baseNotif.Timestamp,
+		Unread:         baseNotif.Unread,
+		Type:           GroupInviteNotif.String(),
+		AvatarGradient: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+		Title:          "Undangan Group Session",
+		Description:    fmt.Sprintf("%v mengundangmu ke \"%v\"", senderName, groupName),
+		PrimaryLabel:   "Gabung",
+		SecondaryLabel: "Tolak",
 	}
 }
 

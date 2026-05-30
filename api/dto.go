@@ -15,6 +15,19 @@ type InterestDTO struct {
 	Label string `json:"label"`
 }
 
+type NotificationDTO struct {
+	Id              string `json:"id"`
+	Type            string `json:"type"`
+	Emoji           string `json:"emoji"`
+	AvatarGradient  string `json:"avatarGradient"`
+	Title           string `json:"title"`
+	Description     string `json:"description"`
+	TimestampString string `json:"timestamp"`
+	Unread          bool   `json:"unread"`
+	PrimaryLabel    string `json:"primaryLabel,omitempty"`
+	SecondaryLabel  string `json:"secondaryLabel,omitempty"`
+}
+
 func ConstructUserDTO(user model.User) UserDTO {
 	interestDTOs := make([]InterestDTO, 0, len(user.Interests))
 
@@ -32,5 +45,20 @@ func ConstructUserDTO(user model.User) UserDTO {
 		Name:      user.Name,
 		Emoji:     "😮",
 		Interests: interestDTOs,
+	}
+}
+
+func ConstructNotificationDTO(notif model.Notification) NotificationDTO {
+	return NotificationDTO{
+		Id:              notif.Id,
+		Type:            notif.Type,
+		Emoji:           notif.Emoji,
+		AvatarGradient:  notif.AvatarGradient,
+		Title:           notif.Title,
+		Description:     notif.Description,
+		TimestampString: notif.Timestamp.Local().Format("15:04"),
+		Unread:          notif.Unread,
+		PrimaryLabel:    notif.PrimaryLabel,
+		SecondaryLabel:  notif.SecondaryLabel,
 	}
 }
