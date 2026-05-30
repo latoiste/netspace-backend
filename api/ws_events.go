@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"time"
 
 	"github.com/latoiste/netspace/model"
 )
@@ -23,25 +22,25 @@ type UserLeft struct {
 }
 
 type NewMessage struct {
-	MessageId string    `json:"id"`
-	Message   string    `json:"message"`
-	Timestamp time.Time `json:"timestamp"`
-	IsMine    bool      `json:"isMine"`
+	MessageId string `json:"id"`
+	Message   string `json:"message"`
+	Timestamp string `json:"timestamp"`
+	IsMine    bool   `json:"isMine"`
 }
 
 type NewPublicMessage struct {
-	MessageId   string    `json:"id"`
-	SenderId    string    `json:"senderId"`
-	SenderName  string    `json:"senderName"`
-	SenderEmoji string    `json:"senderEmoji"`
-	Message     string    `json:"message"`
-	Timestamp   time.Time `json:"timestamp"`
-	IsMine      bool      `json:"isMine"`
+	MessageId   string `json:"id"`
+	SenderId    string `json:"senderId"`
+	SenderName  string `json:"senderName"`
+	SenderEmoji string `json:"senderEmoji"`
+	Message     string `json:"message"`
+	Timestamp   string `json:"timestamp"`
+	IsMine      bool   `json:"isMine"`
 }
 
 type MessageSent struct {
-	MessageId string    `json:"id"`
-	Timestamp time.Time `json:"timestamp"`
+	MessageId string `json:"id"`
+	Timestamp string `json:"timestamp"`
 }
 
 type UserTyping struct {
@@ -60,13 +59,13 @@ type TypingEvent struct {
 }
 
 type NewGroupMessage struct {
-	MessageId   string    `json:"id"`
-	SenderId    string    `json:"senderId"`
-	SenderName  string    `json:"senderName"`
-	SenderEmoji string    `json:"senderEmoji"`
-	Message     string    `json:"message"`
-	Timestamp   time.Time `json:"timestamp"`
-	IsMine      bool      `json:"isMine"`
+	MessageId   string `json:"id"`
+	SenderId    string `json:"senderId"`
+	SenderName  string `json:"senderName"`
+	SenderEmoji string `json:"senderEmoji"`
+	Message     string `json:"message"`
+	Timestamp   string `json:"timestamp"`
+	IsMine      bool   `json:"isMine"`
 }
 
 type GroupInvite struct {

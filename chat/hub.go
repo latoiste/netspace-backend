@@ -111,12 +111,12 @@ func (h *Hub) run() {
 			newMsg := api.NewMessage{
 				MessageId: msg.MessageId,
 				Message:   msg.Message,
-				Timestamp: msg.Timestamp,
+				Timestamp: msg.Timestamp.Local().Format("15:04"),
 			}
 
 			msgSent := api.MessageSent{
 				MessageId: msg.MessageId,
-				Timestamp: msg.Timestamp,
+				Timestamp: msg.Timestamp.Local().Format("15:04"),
 			}
 
 			senderMsg := newMsg
@@ -161,7 +161,7 @@ func (h *Hub) run() {
 				SenderName:  sender.Name,
 				SenderEmoji: sender.Emoji,
 				Message:     msg.Message,
-				Timestamp:   msg.Timestamp,
+				Timestamp:   msg.Timestamp.Local().Format("15:04"),
 			}
 
 			senderMsg := newMsg
@@ -297,7 +297,7 @@ func (h *Hub) run() {
 				SenderName:  sender.Name,
 				SenderEmoji: sender.Emoji,
 				Message:     msg.Message,
-				Timestamp:   msg.Timestamp,
+				Timestamp:   msg.Timestamp.Local().Format("15:04"),
 			}
 
 			senderMsg := newMsg
