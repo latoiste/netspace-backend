@@ -47,6 +47,59 @@ func (r *Repository) InsertNotification(notif model.Notification, userId string,
 	return nil
 }
 
+func (r *Repository) NotificationByUserId(userId string, ctx context.Context) ([]model.Notification, error) {
+	query := `
+		SELECT 
+			"id",
+			userid,
+			"type",
+			emoji,
+			avatargradient,
+			title,
+			description,
+			"timestamp",
+			unread,
+			COALESCE(primaryLabel, ''),
+			COALESCE(secondaryLabel, '')
+		FROM notifications
+		WHERE userid = $1
+	`
+
+	notifications := make([]model.Notification, 0)
+
+	rows, err := r.db.QueryContext(
+		ctx,
+		query,
+		userId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var notif model.Notification
+		err = rows.Scan(
+			&notif.Id,
+			&notif.UserId,
+			&notif.Type,
+			&notif.Emoji,
+			&notif.AvatarGradient,
+			&notif.Title,
+			&notif.Description,
+			&notif.Timestamp,
+			&notif.Unread,
+			&notif.PrimaryLabel,
+			&notif.SecondaryLabel,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		notifications = append(notifications, notif)
+	}
+	return notifications, nil
+}
+
 func (r *Repository) UpdateNotificationUnread(notificationId string, unread bool, ctx context.Context) error {
 	query := `
 		UPDATE notifications

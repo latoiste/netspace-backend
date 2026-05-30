@@ -1,6 +1,8 @@
 package api
 
-import "github.com/latoiste/netspace/model"
+import (
+	"github.com/latoiste/netspace/model"
+)
 
 type CreateUserResponse struct {
 	UserId       string `json:"userId"`
@@ -14,18 +16,36 @@ type GetUsersResponse struct {
 	OnlineCount int       `json:"onlineCount"`
 }
 
+type GetNotificationsResponse struct {
+	Notifications []NotificationDTO `json:"notifications"`
+}
+
 func ConstructGetUsersResponse(users []model.User) GetUsersResponse {
 	onlineCount := len(users)
-	userDTOs := make([]UserDTO, 0)
+	userDTOs := make([]UserDTO, len(users))
 
-	for _, user := range users {
+	for i, user := range users {
 		userDTO := ConstructUserDTO(user)
 
-		userDTOs = append(userDTOs, userDTO)
+		userDTOs[i] = userDTO
 	}
 
 	return GetUsersResponse{
 		Users:       userDTOs,
 		OnlineCount: onlineCount,
+	}
+}
+
+func ConstructGetNotificationsResponse(notifs []model.Notification) GetNotificationsResponse {
+	notifDTOs := make([]NotificationDTO, len(notifs))
+
+	for i, notif := range notifs {
+		notifDTO := ConstructNotificationDTO(notif)
+
+		notifDTOs[i] = notifDTO
+	}
+
+	return GetNotificationsResponse{
+		Notifications: notifDTOs,
 	}
 }

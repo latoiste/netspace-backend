@@ -35,6 +35,8 @@ func (h *Handler) StartServer() {
 			r.Use(mw.Auth(h.auth))
 			r.Get("/locations/{slug}/users", h.handleLocationUsers())
 			r.Get("/sessions/logout", h.handleLogout())
+
+			r.Get("/notifications", h.handleNotification())
 		})
 		r.Route("/admin", func(r chi.Router) {
 			r.Get("/sessions", h.handleGetActiveSessions())
