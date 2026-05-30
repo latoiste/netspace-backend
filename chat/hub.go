@@ -1,12 +1,8 @@
 package chat
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"log"
-	"time"
 
 	"github.com/latoiste/netspace/api"
 	"github.com/latoiste/netspace/db"
@@ -89,6 +85,7 @@ func (h *Hub) run() {
 		select {
 		case client := <-h.Register:
 			h.Clients[client.UserId] = client
+
 		case client := <-h.unregister:
 			err := h.removeClient(client)
 			if err != nil {
@@ -96,239 +93,35 @@ func (h *Hub) run() {
 				continue
 			}
 		case msg := <-h.sendPrivateMsg:
-			sender, ok := h.Clients[msg.SenderId]
-			if !ok {
-				log.Println("Sender id not found")
-				continue
-			}
+			h.handleSendPrivateMsg(msg)
 
-			recipient, ok := h.Clients[msg.RecipientId]
-			if !ok {
-				log.Println("Recipient id not found")
-				continue
-			}
-
-			newMsg := api.NewMessage{
-				MessageId: msg.MessageId,
-				Message:   msg.Message,
-				Timestamp: msg.Timestamp.Local().Format("15:04"),
-			}
-
-			msgSent := api.MessageSent{
-				MessageId: msg.MessageId,
-				Timestamp: msg.Timestamp.Local().Format("15:04"),
-			}
-
-			senderMsg := newMsg
-			senderMsg.IsMine = true
-
-			recipientMsg := newMsg
-			recipientMsg.IsMine = false
-
-			h.persistPrivateMsg <- msg
-
-			err := recipient.sendEvent("new_message", recipientMsg)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-
-			err = sender.sendEvent("new_message", senderMsg)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-
-			err = sender.sendEvent("message_sent", msgSent)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
 		case msg := <-h.typingStart:
 			h.notifyTyping("user_typing", msg)
+
 		case msg := <-h.typingStop:
 			h.notifyTyping("user_stopped_typing", msg)
+
 		case msg := <-h.sendPublicMsg:
-			sender, ok := h.Clients[msg.SenderId]
-			if !ok {
-				log.Println("Sender id not found")
-				continue
-			}
+			h.handleSendPublicMsg(msg)
 
-			newMsg := api.NewPublicMessage{
-				MessageId:   msg.MessageId,
-				SenderId:    msg.SenderId,
-				SenderName:  sender.Name,
-				SenderEmoji: sender.Emoji,
-				Message:     msg.Message,
-				Timestamp:   msg.Timestamp.Local().Format("15:04"),
-			}
-
-			senderMsg := newMsg
-			senderMsg.IsMine = true
-
-			otherMsg := newMsg
-			otherMsg.IsMine = false
-
-			h.persistPublicMsg <- msg
-
-			err := sender.sendEvent("new_public_message", senderMsg)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-
-			for _, client := range h.Clients {
-				if client.UserId != msg.SenderId {
-					err = client.sendEvent("new_public_message", otherMsg)
-					if err != nil {
-						log.Println(err)
-						continue
-					}
-				}
-			}
 		case msg := <-h.publicTypingStart:
 			h.notifyPublicTyping("public_user_typing", msg)
+
 		case msg := <-h.publicTypingStop:
 			h.notifyPublicTyping("public_user_stopped_typing", msg)
+
 		case msg := <-h.inviteToGroup:
-			group, ok := h.groups[msg.GroupId]
-			if !ok {
-				log.Println("Group not found")
-				continue
-			}
+			h.handleInviteToGroup(msg)
 
-			host, ok := h.Clients[group.hostId]
-			if !ok {
-				log.Println("Invalid host id")
-				continue
-			}
-
-			groupInviteNotif := model.NewGroupInviteNotif(
-				host.Emoji,
-				time.Now().UTC(),
-				host.Name,
-				group.name,
-			)
-
-			for _, memberId := range msg.UserIds {
-				client, ok := h.Clients[memberId]
-				if !ok {
-					log.Printf("Failed to send invite to %v, id not found\n", memberId)
-					continue
-				}
-				log.Printf("Sent to %v", memberId)
-
-				h.sendNotification(client, groupInviteNotif)
-			}
 		case invite := <-h.acceptInvite:
-			sender, ok := h.Clients[invite.userId]
-			if !ok {
-				log.Println("Sender not found")
-				continue
-			}
+			h.handleAcceptInvite(invite)
 
-			group, ok := h.groups[invite.groupId]
-			if !ok {
-				log.Println("Group not found")
-				continue
-			}
-
-			_, ok = group.memberIds[sender.UserId]
-			if ok {
-				log.Printf("User %v is trying to join but already in group %v\n", sender.UserId, group.name)
-				continue
-			}
-
-			newMember := api.MemberJoined{
-				Id:     sender.UserId,
-				Name:   sender.Name,
-				Emoji:  sender.Emoji,
-				IsHost: false,
-			}
-
-			for memberId := range group.memberIds {
-				client, ok := h.Clients[memberId]
-				if !ok {
-					log.Printf("Sender id %v not found in group %v\n", memberId, group.name)
-					continue
-				}
-				client.sendEvent("member_joined", newMember)
-			}
-			group.memberIds[sender.UserId] = true
-			log.Println("Member is added to group")
-			fmt.Println(group)
 		case invite := <-h.leaveGroup:
-			sender, ok := h.Clients[invite.userId]
-			if !ok {
-				log.Println("Sender not found")
-				continue
-			}
+			h.handleLeaveGroup(invite)
 
-			group, ok := h.groups[invite.groupId]
-			if !ok {
-				log.Println("Group not found")
-				continue
-			}
-
-			_, ok = group.memberIds[sender.UserId]
-			if !ok {
-				log.Printf("User %v is trying to leave but not in group %v\n", sender.UserId, group.name)
-				continue
-			}
-
-			h.broadcastGroupMemberLeft(group, sender)
 		case msg := <-h.sendGroupMsg:
-			sender, ok := h.Clients[msg.SenderId]
-			if !ok {
-				log.Println("Sender id not foudn")
-				continue
-			}
+			h.handleSendGroupMsg(msg)
 
-			group, ok := h.groups[msg.GroupId]
-			if !ok {
-				log.Println("Group id not found")
-				continue
-			}
-
-			newMsg := api.NewPublicMessage{
-				MessageId:   msg.MessageId,
-				SenderId:    msg.SenderId,
-				SenderName:  sender.Name,
-				SenderEmoji: sender.Emoji,
-				Message:     msg.Message,
-				Timestamp:   msg.Timestamp.Local().Format("15:04"),
-			}
-
-			senderMsg := newMsg
-			senderMsg.IsMine = true
-
-			otherMsg := newMsg
-			otherMsg.IsMine = false
-
-			h.persistGroupMsg <- msg
-
-			err := sender.sendEvent("new_group_message", senderMsg)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-
-			for memberId := range group.memberIds {
-				if memberId == sender.UserId {
-					continue
-				}
-				client, ok := h.Clients[memberId]
-				if !ok {
-					log.Printf("client %v not found in group %v\n", memberId, group.name)
-					continue
-				}
-				err := client.sendEvent("new_group_message", otherMsg)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-			}
 		case notif := <-h.notificationRead:
 			h.persistNotificationRead <- notif
 		}
@@ -346,90 +139,6 @@ func (h *Hub) broadcastLoop() {
 		for _, client := range h.Clients {
 			client.Send <- message
 		}
-	}
-}
-
-func (h *Hub) persistPrivateMsgLoop() {
-	for msg := range h.persistPrivateMsg {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-
-		err := h.repo.InsertPrivateMessage(msg, ctx)
-		if err != nil {
-			log.Println(err)
-		}
-		cancel()
-	}
-}
-
-func (h *Hub) persistPublicMsgLoop() {
-	for msg := range h.persistPublicMsg {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-
-		err := h.repo.InsertPublicMessage(msg, ctx)
-		if err != nil {
-			log.Println(err)
-		}
-		cancel()
-	}
-}
-
-func (h *Hub) persistGroupMsgLoop() {
-	for msg := range h.persistGroupMsg {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-
-		err := h.repo.InsertGroupMessage(msg, ctx)
-		if err != nil {
-			log.Println(err)
-		}
-		cancel()
-	}
-}
-
-func (h *Hub) persistGroupLoop() {
-	for group := range h.persistGroup {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-
-		err := h.repo.InsertGroup(group, ctx)
-		if err != nil {
-			log.Println(err)
-		}
-		cancel()
-	}
-}
-
-func (h *Hub) persistDissolveGroupLoop() {
-	for group := range h.persistDissolveGroup {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-
-		err := h.repo.UpdateGroupIsActive(group.Id, group.IsActive, ctx)
-		if err != nil {
-			log.Println(err)
-		}
-		cancel()
-	}
-}
-
-func (h *Hub) persistNotificationLoop() {
-	for notif := range h.persistNotification {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-
-		err := h.repo.InsertNotification(notif, notif.UserId, ctx)
-		if err != nil {
-			log.Println(err)
-		}
-		cancel()
-	}
-}
-
-func (h *Hub) persistNotificationReadLoop() {
-	for notif := range h.persistNotificationRead {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-
-		err := h.repo.UpdateNotificationUnread(notif.NotificationId, false, ctx)
-		if err != nil {
-			log.Println(err)
-		}
-		cancel()
 	}
 }
 
@@ -479,132 +188,4 @@ func (h *Hub) removeClient(client *Client) error {
 		Data:  data,
 	}
 	return nil
-}
-
-func (h *Hub) notifyTyping(event string, msg api.TypingEvent) {
-	recipient, ok := h.Clients[msg.RecipientId]
-	if !ok {
-		log.Println("Recipient not found")
-		return
-	}
-
-	userTyping := api.UserTyping{
-		UserId: msg.SenderId,
-	}
-
-	err := recipient.sendEvent(event, userTyping)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-}
-
-func (h *Hub) notifyPublicTyping(event string, msg api.PublicUserTyping) {
-	for _, client := range h.Clients {
-		if client.UserId != msg.UserId {
-			err := client.sendEvent(event, msg)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-		}
-	}
-}
-
-func (h *Hub) createGroup(groupName string, hostId string, memberIds []string) (*Group, error) {
-	host, ok := h.Clients[hostId]
-	if !ok {
-		return nil, errors.New("Invalid host id")
-	}
-
-	for _, group := range h.groups {
-		if group.name == groupName {
-			return nil, errors.New("Group name is taken")
-		}
-	}
-
-	groupId := GenerateGroupId()
-
-	group := &Group{
-		id:        groupId,
-		name:      groupName,
-		hostId:    hostId,
-		memberIds: make(map[string]bool),
-	}
-	group.memberIds[hostId] = true
-	h.groups[groupId] = group
-
-	groupInviteNotif := model.NewGroupInviteNotif(
-		host.Emoji,
-		time.Now().UTC(),
-		host.Name,
-		groupName,
-	)
-
-	for _, memberId := range memberIds {
-		if client, ok := h.Clients[memberId]; ok {
-			h.sendNotification(client, groupInviteNotif)
-		}
-	}
-
-	h.persistGroup <- model.Group{
-		Id:       groupId,
-		Name:     groupName,
-		IsActive: true,
-	}
-
-	return group, nil
-}
-
-func (h *Hub) broadcastGroupMemberLeft(group *Group, leavingClient *Client) {
-	memberLeft := api.MemberLeft{
-		UserId: leavingClient.UserId,
-		Name:   leavingClient.Name,
-	}
-
-	for memberId := range group.memberIds {
-		if memberId == leavingClient.UserId {
-			continue
-		}
-		client, ok := h.Clients[memberId]
-		if !ok {
-			log.Printf("Sender id not found")
-			continue
-		}
-		client.sendEvent("member_left", memberLeft)
-	}
-
-	delete(group.memberIds, leavingClient.UserId)
-
-	if len(group.memberIds) <= 1 {
-		for memberId := range group.memberIds {
-			client, ok := h.Clients[memberId]
-			if !ok {
-				continue
-			}
-			groupDissolved := api.GroupDissolved{
-				GroupId: group.id,
-			}
-
-			client.sendEvent("group_dissolved", groupDissolved)
-			delete(group.memberIds, memberId)
-		}
-		delete(h.groups, group.id)
-
-		h.persistDissolveGroup <- model.Group{
-			Id:       group.id,
-			Name:     group.name,
-			IsActive: false,
-		}
-	}
-}
-
-func (h *Hub) sendNotification(receiver *Client, notif model.Notification) {
-	notif.UserId = receiver.UserId
-
-	err := receiver.sendEvent("new_notification", notif)
-	if err != nil {
-		log.Println(err)
-	}
-	h.persistNotification <- notif
 }
