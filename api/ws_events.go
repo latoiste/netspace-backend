@@ -141,3 +141,7 @@ type InviteToGroup struct {
 type GroupInviteResponse struct {
 	GroupId string `json:"groupId"`
 }
+
+type NotificationRead struct {
+	NotificationId string `json:"notificationId"`
+}

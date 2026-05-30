@@ -35,37 +35,44 @@ type Hub struct {
 	leaveGroup    chan GroupInvite
 	sendGroupMsg  chan model.GroupMessage
 
-	persistPrivateMsg    chan model.PrivateMessage
-	persistPublicMsg     chan model.PublicMessage
-	persistGroupMsg      chan model.GroupMessage
-	persistGroup         chan model.Group
-	persistDissolveGroup chan model.Group
+	notificationRead chan api.NotificationRead
+
+	persistPrivateMsg       chan model.PrivateMessage
+	persistPublicMsg        chan model.PublicMessage
+	persistGroupMsg         chan model.GroupMessage
+	persistGroup            chan model.Group
+	persistDissolveGroup    chan model.Group
+	persistNotification     chan model.Notification
+	persistNotificationRead chan api.NotificationRead
 }
 
 func NewHub(repo *db.Repository, locationId int) *Hub {
 	return &Hub{
-		Clients:              make(map[string]*Client),
-		locationId:           locationId,
-		repo:                 repo,
-		groups:               make(map[string]*Group),
-		Register:             make(chan *Client),
-		unregister:           make(chan *Client),
-		broadcast:            make(chan api.WsEvent),
-		sendPrivateMsg:       make(chan model.PrivateMessage),
-		typingStart:          make(chan api.TypingEvent),
-		typingStop:           make(chan api.TypingEvent),
-		sendPublicMsg:        make(chan model.PublicMessage),
-		publicTypingStart:    make(chan api.PublicUserTyping),
-		publicTypingStop:     make(chan api.PublicUserTyping),
-		inviteToGroup:        make(chan api.InviteToGroup),
-		acceptInvite:         make(chan GroupInvite),
-		leaveGroup:           make(chan GroupInvite),
-		sendGroupMsg:         make(chan model.GroupMessage),
-		persistPrivateMsg:    make(chan model.PrivateMessage, 20),
-		persistPublicMsg:     make(chan model.PublicMessage, 20),
-		persistGroupMsg:      make(chan model.GroupMessage, 20),
-		persistGroup:         make(chan model.Group, 20),
-		persistDissolveGroup: make(chan model.Group),
+		Clients:                 make(map[string]*Client),
+		locationId:              locationId,
+		repo:                    repo,
+		groups:                  make(map[string]*Group),
+		Register:                make(chan *Client),
+		unregister:              make(chan *Client),
+		broadcast:               make(chan api.WsEvent),
+		sendPrivateMsg:          make(chan model.PrivateMessage),
+		typingStart:             make(chan api.TypingEvent),
+		typingStop:              make(chan api.TypingEvent),
+		sendPublicMsg:           make(chan model.PublicMessage),
+		publicTypingStart:       make(chan api.PublicUserTyping),
+		publicTypingStop:        make(chan api.PublicUserTyping),
+		inviteToGroup:           make(chan api.InviteToGroup),
+		acceptInvite:            make(chan GroupInvite),
+		leaveGroup:              make(chan GroupInvite),
+		sendGroupMsg:            make(chan model.GroupMessage),
+		notificationRead:        make(chan api.NotificationRead, 20),
+		persistPrivateMsg:       make(chan model.PrivateMessage, 20),
+		persistPublicMsg:        make(chan model.PublicMessage, 20),
+		persistGroupMsg:         make(chan model.GroupMessage, 20),
+		persistGroup:            make(chan model.Group, 20),
+		persistDissolveGroup:    make(chan model.Group, 20),
+		persistNotification:     make(chan model.Notification, 20),
+		persistNotificationRead: make(chan api.NotificationRead, 20),
 	}
 }
 
@@ -75,6 +82,8 @@ func (h *Hub) run() {
 	go h.persistGroupMsgLoop()
 	go h.persistGroupLoop()
 	go h.persistDissolveGroupLoop()
+	go h.persistNotificationLoop()
+	go h.persistNotificationReadLoop()
 
 	for {
 		select {
@@ -209,6 +218,7 @@ func (h *Hub) run() {
 					continue
 				}
 				log.Printf("Sent to %v", memberId)
+
 				h.sendNotification(client, groupInviteNotif)
 			}
 		case invite := <-h.acceptInvite:
@@ -318,8 +328,9 @@ func (h *Hub) run() {
 					log.Println(err)
 					continue
 				}
-
 			}
+		case notif := <-h.notificationRead:
+			h.persistNotificationRead <- notif
 		}
 	}
 }
@@ -391,6 +402,30 @@ func (h *Hub) persistDissolveGroupLoop() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 
 		err := h.repo.UpdateGroupIsActive(group.Id, group.IsActive, ctx)
+		if err != nil {
+			log.Println(err)
+		}
+		cancel()
+	}
+}
+
+func (h *Hub) persistNotificationLoop() {
+	for notif := range h.persistNotification {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+
+		err := h.repo.InsertNotification(notif, notif.UserId, ctx)
+		if err != nil {
+			log.Println(err)
+		}
+		cancel()
+	}
+}
+
+func (h *Hub) persistNotificationReadLoop() {
+	for notif := range h.persistNotificationRead {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+
+		err := h.repo.UpdateNotificationUnread(notif.NotificationId, false, ctx)
 		if err != nil {
 			log.Println(err)
 		}
@@ -564,9 +599,12 @@ func (h *Hub) broadcastGroupMemberLeft(group *Group, leavingClient *Client) {
 	}
 }
 
-func (h *Hub) sendNotification(sender *Client, notif model.Notification) {
-	err := sender.sendEvent(notif.Type, notif)
+func (h *Hub) sendNotification(receiver *Client, notif model.Notification) {
+	notif.UserId = receiver.UserId
+
+	err := receiver.sendEvent("new_notification", notif)
 	if err != nil {
 		log.Println(err)
 	}
+	h.persistNotification <- notif
 }

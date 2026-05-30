@@ -8,7 +8,7 @@ CREATE TABLE Locations (
 );
 
 CREATE TABLE Users (
-	id TEXT UNIQUE NOT NULL,
+	id TEXT UNIQUE PRIMARY KEY,
 	locationId INT REFERENCES Locations(id),
 	name VARCHAR(30),
 	slug VARCHAR(30),
@@ -67,6 +67,20 @@ CREATE TABLE GroupMessages (
 	"timestamp" TIMESTAMPTZ
 );
 
+CREATE TABLE Notifications (
+	"id" TEXT PRIMARY KEY,
+	userId TEXT REFERENCES Users(id),
+	"type" TEXT CHECK ("type" IN ('message', 'group_invite', 'chat_request', 'system')),
+	emoji TEXT NOT NULL,
+	avatarGradient TEXT NOT NULL,
+	title TEXT NOT NULL,
+	description TEXT NOT NULL,    
+	"timestamp" TIMESTAMPTZ,
+	unread BOOL DEFAULT TRUE,
+	primaryLabel TEXT,
+	secondaryLabel TEXT
+);
+
 INSERT INTO Interests (emoji, label)
 VALUES ('☕', 'Kopi'),
   ('🎮', 'Gaming'),
@@ -83,4 +97,4 @@ VALUES ('☕', 'Kopi'),
 
 SELECT * FROM Users;
 
-SELECT * FROM publicmessage;
+SELECT * FROM notifications;

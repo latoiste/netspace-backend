@@ -181,6 +181,15 @@ func (c *Client) ReadPump() {
 				},
 				GroupId: data.GroupId,
 			}
+		case "notification_read":
+			var data api.NotificationRead
+			err := json.Unmarshal(req.Data, &data)
+			if err != nil {
+				log.Println("On notification_read", err)
+				continue
+			}
+
+			c.Hub.notificationRead <- data
 		}
 	}
 }
