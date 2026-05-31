@@ -66,3 +66,14 @@ func ConstructGetNotificationsResponse(notifs []model.Notification) GetNotificat
 		Notifications: notifDTOs,
 	}
 }
+
+func ConstructGetActiveUsersResponse(users []model.User) []ActiveUserDTO {
+	activeUserDTOs := make([]ActiveUserDTO, 0, len(users))
+
+	for _, user := range users {
+		activeUserDTO := ConstructActiveUserDTO(user)
+		activeUserDTOs = append(activeUserDTOs, activeUserDTO)
+	}
+
+	return activeUserDTOs
+}

@@ -1,6 +1,11 @@
 package api
 
-import "github.com/latoiste/netspace/model"
+import (
+	"math"
+	"time"
+
+	"github.com/latoiste/netspace/model"
+)
 
 type UserDTO struct {
 	Id        string        `json:"id"`
@@ -20,6 +25,15 @@ type InterestPercentageDTO struct {
 	Percentage int `json:"Percentage"`
 }
 
+type ActiveUserDTO struct {
+	Id        string        `json:"id"`
+	Name      string        `json:"name"`
+	Avatar    string        `json:"avatar"`
+	Gender    string        `json:"gender"`
+	Interests []InterestDTO `json:"interests"`
+	Duration  int           `json:"duration"`
+}
+
 type NotificationDTO struct {
 	Id              string `json:"id"`
 	Type            string `json:"type"`
@@ -37,10 +51,7 @@ func ConstructUserDTO(user model.User) UserDTO {
 	interestDTOs := make([]InterestDTO, 0, len(user.Interests))
 
 	for _, interest := range user.Interests {
-		interestDTO := InterestDTO{
-			Emoji: interest.Emoji,
-			Label: interest.Label,
-		}
+		interestDTO := ConstructInterestDTO(interest)
 		interestDTOs = append(interestDTOs, interestDTO)
 	}
 
@@ -50,6 +61,33 @@ func ConstructUserDTO(user model.User) UserDTO {
 		Name:      user.Name,
 		Emoji:     "😮",
 		Interests: interestDTOs,
+	}
+}
+
+func ConstructInterestDTO(interest model.Interest) InterestDTO {
+	return InterestDTO{
+		Emoji: interest.Emoji,
+		Label: interest.Label,
+	}
+}
+
+func ConstructActiveUserDTO(user model.User) ActiveUserDTO {
+	interestDTOs := make([]InterestDTO, 0, len(user.Interests))
+
+	for _, interest := range user.Interests {
+		interestDTO := ConstructInterestDTO(interest)
+		interestDTOs = append(interestDTOs, interestDTO)
+	}
+
+	duration := time.Since(user.CreatedAt).Minutes()
+
+	return ActiveUserDTO{
+		Id:        user.Id,
+		Name:      user.Name,
+		Avatar:    "😮",
+		Gender:    user.Gender,
+		Interests: interestDTOs,
+		Duration:  int(math.Floor(duration)),
 	}
 }
 

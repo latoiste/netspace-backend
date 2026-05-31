@@ -154,29 +154,41 @@ func (h *Handler) handleToggleLocationStatus() http.HandlerFunc {
 	}
 }
 
-// func (h *Handler) handleGetActiveSessions() http.HandlerFunc {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		defer r.Body.Close()
+func (h *Handler) handleActiveUsers() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		w.Header().Set("Content-Type", "application/json")
+		locationSlug := r.PathValue("slug")
 
-// 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-// 		defer cancel()
+		ctx1, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel()
 
-// 		sessions, err := h.repo.GetActiveSessions(ctx)
-// 		if err != nil {
-// 			http.Error(w, err.Error(), http.StatusInternalServerError)
-// 			return
-// 		}
+		id, err := h.repo.LocationIdBySlug(locationSlug, ctx1)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-// 		if sessions == nil {
-// 			sessions = []model.ActiveSession{}
-// 		}
+		ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel()
 
-// 		w.Header().Set("Content-Type", "application/json")
-// 		if err = json.NewEncoder(w).Encode(sessions); err != nil {
-// 			http.Error(w, err.Error(), http.StatusInternalServerError)
-// 		}
-// 	}
-// }
+		users, err := h.repo.UsersInLocation(id, ctx2)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		response := api.ConstructGetActiveUsersResponse(users)
+
+		if err = json.NewEncoder(w).Encode(response); err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
 
 // func (h *Handler) handleForceLogout() http.HandlerFunc {
 // 	return func(w http.ResponseWriter, r *http.Request) {

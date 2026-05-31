@@ -17,10 +17,10 @@ CREATE TABLE Locations (
 CREATE TABLE Users (
 	id TEXT UNIQUE NOT NULL,
 	locationId INT REFERENCES Locations(id),
-	name VARCHAR(30),
-	slug VARCHAR(30),
+	name TEXT,
+	slug TEXT,
 	age INT,
-	gender VARCHAR(6),
+	gender TEXT,
 	createdAt TIMESTAMPTZ DEFAULT NOW(),
 	isActive BOOL DEFAULT TRUE
 );

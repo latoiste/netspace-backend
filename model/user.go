@@ -1,6 +1,10 @@
 package model
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Interest struct {
 	Id       int    `json:"id"`
@@ -17,6 +21,8 @@ type User struct {
 	Slug       string
 	Emoji      string
 	LocationId int
+	CreatedAt  time.Time
+	IsActive   bool
 	Interests  []Interest
 }
 

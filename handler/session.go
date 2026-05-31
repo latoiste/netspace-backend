@@ -103,5 +103,12 @@ func (h *Handler) handleLogout() http.HandlerFunc {
 
 		tokenString := sessionData.TokenString
 		h.blacklist.Add(tokenString)
+
+		userId := sessionData.UserId
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel()
+
+		h.repo.UpdateUserIsActive(userId, false, ctx)
 	}
 }

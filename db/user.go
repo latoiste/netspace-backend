@@ -12,7 +12,16 @@ import (
 
 func (r *Repository) UserById(userId string, ctx context.Context) (*model.User, error) {
 	const query = `
-		SELECT * FROM Users
+		SELECT 
+			id,
+			locationId,
+			name,
+			slug,
+			age,
+			gender,
+			createdAt,
+			isActive
+		FROM Users
 		WHERE id=$1
 	`
 
@@ -22,11 +31,13 @@ func (r *Repository) UserById(userId string, ctx context.Context) (*model.User, 
 
 	if err := row.Scan(
 		&user.Id,
+		&user.LocationId,
 		&user.Name,
+		&user.Slug,
 		&user.Age,
 		&user.Gender,
-		&user.Slug,
-		&user.LocationId,
+		&user.CreatedAt,
+		&user.IsActive,
 	); err != nil {
 		return nil, err
 	}
@@ -180,11 +191,19 @@ func (r *Repository) UserInterests(userId string, ctx context.Context) ([]model.
 
 func (r *Repository) UsersInLocation(locationId int, ctx context.Context) ([]model.User, error) {
 	const query = `
-		SELECT u.id, u.name, u.age, u.gender, u.slug, u.locationId
+		SELECT 
+			u.id,
+			u.locationId,
+			u.name,
+			u.slug,
+			u.age,
+			u.gender,
+			u.createdAt,
+			u.isActive
 		FROM Locations l
 		JOIN Users u
 		ON l.Id=u.locationId
-		WHERE locationId=$1;
+		WHERE locationId=$1 AND u.isActive = true;
 	`
 
 	users := make([]model.User, 0)
@@ -198,11 +217,13 @@ func (r *Repository) UsersInLocation(locationId int, ctx context.Context) ([]mod
 		var user model.User
 		err = rows.Scan(
 			&user.Id,
+			&user.LocationId,
 			&user.Name,
+			&user.Slug,
 			&user.Age,
 			&user.Gender,
-			&user.Slug,
-			&user.LocationId,
+			&user.CreatedAt,
+			&user.IsActive,
 		)
 		if err != nil {
 			return nil, err
@@ -219,4 +240,19 @@ func (r *Repository) UsersInLocation(locationId int, ctx context.Context) ([]mod
 	}
 
 	return users, nil
+}
+
+func (r *Repository) UpdateUserIsActive(userId string, isActive bool, ctx context.Context) error {
+	query := `
+		UPDATE users
+		SET isactive = $1
+		WHERE id = $2
+	`
+
+	_, err := r.db.ExecContext(ctx, query, isActive, userId)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

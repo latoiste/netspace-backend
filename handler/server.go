@@ -47,10 +47,8 @@ func (h *Handler) StartServer() {
 			r.Route("/locations", func(r chi.Router) {
 				r.Get("/{slug}", h.handleLocationDetail())
 				r.Put("/{slug}", h.handleToggleLocationStatus())
+				r.Get("/{slug}/users", h.handleActiveUsers())
 			})
-			// r.Get("/sessions", h.handleGetActiveSessions())
-			// r.Post("/force-logout/{userId}", h.handleForceLogout())
-			// r.Get("/dashboard/stats", h.handleGetAnalyticsMetrics())
 		})
 	})
 

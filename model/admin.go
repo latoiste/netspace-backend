@@ -1,6 +1,8 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 type ActiveSession struct {
 	UserID       int       `json:"userId"`
@@ -15,8 +17,8 @@ type ActiveSession struct {
 }
 
 type AnalyticsData struct {
-	Date          string `json:"date"`
-	ActiveUsers   int    `json:"activeUsers"`
-	TotalSessions int    `json:"totalSessions"`
-	MessageCount  int    `json:"messageCount"`
+	Label     string `json:"label"`
+	Value     string `json:"value"`
+	Delta     string `json:"delta"`
+	DeltaType string `json:"deltaType"`
 }

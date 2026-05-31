@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"time"
@@ -36,6 +37,8 @@ func (c *Client) ReadPump() {
 	defer func() {
 		log.Println("Connection is clsoed")
 		c.Hub.unregister <- c
+
+		c.handleClientDisconnect()
 		c.conn.Close()
 	}()
 
@@ -264,5 +267,15 @@ func (c *Client) handlePublicTypingRequest(req api.WsEvent) api.PublicUserTyping
 		UserId: c.UserId,
 		Name:   c.Name,
 		Emoji:  c.Emoji,
+	}
+}
+
+func (c *Client) handleClientDisconnect() {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	err := c.Hub.repo.UpdateUserIsActive(c.UserId, false, ctx)
+	if err != nil {
+		log.Println(err)
 	}
 }
