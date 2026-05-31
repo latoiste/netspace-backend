@@ -31,6 +31,7 @@ func (h *Handler) StartServer() {
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/sessions/check-in", h.handleCheckin())
 		r.Get("/locations/{slug}", h.handleLocation())
+
 		r.Group(func(r chi.Router) {
 			r.Use(mw.Auth(h.auth))
 			r.Get("/locations/{slug}/users", h.handleLocationUsers())
@@ -38,10 +39,13 @@ func (h *Handler) StartServer() {
 
 			r.Get("/notifications", h.handleNotification())
 		})
+
 		r.Route("/admin", func(r chi.Router) {
-			r.Get("/sessions", h.handleGetActiveSessions())
-			r.Post("/force-logout/{userId}", h.handleForceLogout())
-			r.Get("/analytics", h.handleGetAnalytics())
+			r.Use(mw.Auth(h.auth))
+			r.Get("/analytics/interests", h.handleTopInterests())
+			// r.Get("/sessions", h.handleGetActiveSessions())
+			// r.Post("/force-logout/{userId}", h.handleForceLogout())
+			// r.Get("/dashboard/stats", h.handleGetAnalyticsMetrics())
 		})
 	})
 

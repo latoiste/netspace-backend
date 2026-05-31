@@ -15,6 +15,11 @@ type InterestDTO struct {
 	Label string `json:"label"`
 }
 
+type InterestPercentageDTO struct {
+	InterestDTO
+	Percentage int `json:"Percentage"`
+}
+
 type NotificationDTO struct {
 	Id              string `json:"id"`
 	Type            string `json:"type"`

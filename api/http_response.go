@@ -20,6 +20,10 @@ type GetNotificationsResponse struct {
 	Notifications []NotificationDTO `json:"notifications"`
 }
 
+type GetActiveUsersResponse struct {
+	Users []UserDTO
+}
+
 func ConstructGetUsersResponse(users []model.User) GetUsersResponse {
 	onlineCount := len(users)
 	userDTOs := make([]UserDTO, len(users))
