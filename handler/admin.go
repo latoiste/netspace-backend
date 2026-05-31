@@ -190,28 +190,45 @@ func (h *Handler) handleActiveUsers() http.HandlerFunc {
 	}
 }
 
-// func (h *Handler) handleForceLogout() http.HandlerFunc {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		defer r.Body.Close()
+func (h *Handler) handleForceLogout() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
 
-// 		userIDStr := r.PathValue("userId")
-// 		userID, err := strconv.Atoi(userIDStr)
-// 		if err != nil {
-// 			http.Error(w, "invalid userId", http.StatusBadRequest)
-// 			return
-// 		}
+		userId := r.PathValue("userId")
 
-// 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-// 		defer cancel()
+		type Payload struct {
+			Reason string `json:"isActive"`
+		}
 
-// 		if err := h.repo.ForceLogoutUser(ctx, userID); err != nil {
-// 			http.Error(w, err.Error(), http.StatusInternalServerError)
-// 			return
-// 		}
+		var reqBody Payload
 
-// 		w.Header().Set("Content-Type", "application/json")
-// 		json.NewEncoder(w).Encode(map[string]string{
-// 			"message": "user successfully logged out",
-// 		})
-// 	}
-// }
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		err = json.Unmarshal(body, &reqBody)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+
+		if err := h.repo.UpdateUserIsActive(userId, false, ctx); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		h.manager.ForceLogoutUser(userId)
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]bool{
+			"success": true,
+		})
+	}
+}

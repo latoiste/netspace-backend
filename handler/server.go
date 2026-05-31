@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
-	"github.com/latoiste/netspace/chat"
 	mw "github.com/latoiste/netspace/middleware"
 )
 
@@ -19,14 +18,13 @@ var upgrader = websocket.Upgrader{
 }
 
 func (h *Handler) StartServer() {
-	manager := chat.NewManager(h.repo)
 	mw := mw.NewMiddleware(h.blacklist)
 
 	r := chi.NewRouter()
 
 	r.Use(mw.Cors)
 
-	r.Get("/ws", h.handleWs(manager))
+	r.Get("/ws", h.handleWs(h.manager))
 
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/sessions/check-in", h.handleCheckin())
@@ -49,6 +47,8 @@ func (h *Handler) StartServer() {
 				r.Put("/{slug}", h.handleToggleLocationStatus())
 				r.Get("/{slug}/users", h.handleActiveUsers())
 			})
+
+			r.Post("/users/{userId}/kick", h.handleForceLogout())
 		})
 	})
 

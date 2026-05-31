@@ -42,3 +42,12 @@ func (m *Manager) StartHub(locationSlug string) error {
 
 	return nil
 }
+
+func (m *Manager) ForceLogoutUser(userId string) {
+	for _, hub := range m.Hubs {
+		client, ok := hub.Clients[userId]
+		if ok {
+			client.forceLogout()
+		}
+	}
+}

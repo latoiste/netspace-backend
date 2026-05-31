@@ -12,6 +12,7 @@ func main() {
 		env.Repo,
 		env.Auth,
 		env.Blacklist,
+		env.Manager,
 	)
 
 	go env.Repo.MonitorDb()

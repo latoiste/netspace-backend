@@ -279,3 +279,7 @@ func (c *Client) handleClientDisconnect() {
 		log.Println(err)
 	}
 }
+
+func (c *Client) forceLogout() {
+	c.conn.Close()
+}

@@ -2,36 +2,10 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/latoiste/netspace/api"
 )
-
-// func (r *Repository) GetActiveSessions(ctx context.Context) (int, error) {
-
-// }
-
-func (r *Repository) ForceLogoutUser(ctx context.Context, userID int) error {
-	result, err := r.db.ExecContext(ctx, `
-		UPDATE users
-		SET status = 'logoff'
-		WHERE user_id = $1 AND status = 'logon'
-	`, userID)
-	if err != nil {
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("user %d not found or already logged out", userID)
-	}
-
-	return nil
-}
 
 func (r *Repository) TotalCheckInRange(start time.Time, end time.Time, ctx context.Context) (int, error) {
 	const query = `
