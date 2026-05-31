@@ -4,6 +4,16 @@ import (
 	"time"
 )
 
+type Admin struct {
+	Id       string
+	Username string
+	Password string
+	Role     string
+	Plan     string
+	Avatar   string
+	Name     string
+}
+
 type ActiveSession struct {
 	UserID       int       `json:"userId"`
 	Name         string    `json:"name"`

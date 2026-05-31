@@ -37,6 +37,11 @@ type GetLocationDetailResponse struct {
 	QrLabel    string `json:"qrLabel"`
 }
 
+type AdminLoginResponse struct {
+	Success bool     `json:"success"`
+	Admin   AdminDTO `json:"admin"`
+}
+
 func ConstructGetUsersResponse(users []model.User) GetUsersResponse {
 	onlineCount := len(users)
 	userDTOs := make([]UserDTO, len(users))

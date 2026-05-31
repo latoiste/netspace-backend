@@ -10,3 +10,8 @@ type CreateUserRequest struct {
 	Gender       string           `json:"gender"`
 	Interests    []model.Interest `json:"interests"`
 }
+
+type AdminLoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}

@@ -34,6 +34,13 @@ type ActiveUserDTO struct {
 	Duration  int           `json:"duration"`
 }
 
+type AdminDTO struct {
+	Name   string `json:"name"`
+	Role   string `json:"role"`
+	Plan   string `json:"plan"`
+	Avatar string `json:"avatar"`
+}
+
 type NotificationDTO struct {
 	Id              string `json:"id"`
 	Type            string `json:"type"`
@@ -61,6 +68,15 @@ func ConstructUserDTO(user model.User) UserDTO {
 		Name:      user.Name,
 		Emoji:     "😮",
 		Interests: interestDTOs,
+	}
+}
+
+func ConstructAdminDTO(admin model.Admin) AdminDTO {
+	return AdminDTO{
+		Name:   admin.Name,
+		Role:   admin.Role,
+		Plan:   admin.Plan,
+		Avatar: admin.Avatar,
 	}
 }
 

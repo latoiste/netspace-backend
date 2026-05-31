@@ -90,6 +90,16 @@ CREATE TABLE Notifications (
 	secondaryLabel TEXT
 );
 
+CREATE TABLE Admins (
+	"id" TEXT PRIMARY KEY,
+	username TEXT,
+	"password" TEXT,
+	"role" TEXT,
+	"plan" TEXT,
+	"avatar" TEXT,
+	"name" TEXT
+);
+
 INSERT INTO Interests (emoji, label)
 VALUES ('☕', 'Kopi'),
   ('🎮', 'Gaming'),
@@ -105,5 +115,12 @@ VALUES ('☕', 'Kopi'),
   ('🌱', 'Tanaman');
 
 SELECT * FROM Users;
+SELECT * FROM UserInterests;
+SELECT * FROM Locations;
 
+SELECT * FROM interests;
 SELECT * FROM publicmessage;
+
+UPDATE users
+SET isActive = true
+WHERE locationId=3;

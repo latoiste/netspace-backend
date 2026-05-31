@@ -54,6 +54,75 @@ import (
 // 	}
 // }
 
+func (h *Handler) handleAdminLogin() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		var reqBody api.AdminLoginRequest
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			w.Write([]byte(
+				`{
+					\"success\": false,
+					\"error\": \"Username dan password harus diisi\"
+				}`,
+			))
+			return
+		}
+
+		err = json.Unmarshal(body, &reqBody)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			w.Write([]byte(
+				`{
+					\"success\": false,
+					\"error\": \"Username dan password harus diisi\"
+				}`,
+			))
+			return
+		}
+
+		username := reqBody.Username
+		password := reqBody.Password
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel()
+
+		admin, err := h.repo.AdminByUsername(username, ctx)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// TODO: ganti pake hash + insert new admin kalo ada waktu
+		w.Header().Set("Content-Type", "application/json")
+		if admin.Password == password {
+			adminDto := api.ConstructAdminDTO(*admin)
+			response := api.AdminLoginResponse{
+				Success: true,
+				Admin:   adminDto,
+			}
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				log.Println(err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			w.Write([]byte(
+				`{
+					\"success\": false,
+					\"error\": \"Username dan password harus diisi\"
+				}`,
+			))
+		}
+	}
+}
+
 func (h *Handler) handleTopInterests() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()

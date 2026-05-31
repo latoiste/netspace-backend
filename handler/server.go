@@ -38,6 +38,8 @@ func (h *Handler) StartServer() {
 			r.Get("/notifications", h.handleNotification())
 		})
 
+		r.Post("/admin/login", h.handleAdminLogin())
+
 		r.Route("/admin", func(r chi.Router) {
 			r.Use(mw.Auth(h.auth))
 			r.Get("/analytics/interests", h.handleTopInterests())

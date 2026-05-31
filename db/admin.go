@@ -5,7 +5,45 @@ import (
 	"time"
 
 	"github.com/latoiste/netspace/api"
+	"github.com/latoiste/netspace/model"
 )
+
+func (r *Repository) AdminByUsername(username string, ctx context.Context) (*model.Admin, error) {
+	const query = `
+		SELECT 
+			"id",
+			username,
+			"password",
+			"role",
+			"plan",
+			"avatar",
+			"name"
+		FROM admins
+		WHERE username = $1
+	`
+
+	row := r.db.QueryRowContext(
+		ctx,
+		query,
+		username,
+	)
+
+	var admin model.Admin
+
+	if err := row.Scan(
+		&admin.Id,
+		&admin.Username,
+		&admin.Password,
+		&admin.Role,
+		&admin.Plan,
+		&admin.Avatar,
+		&admin.Name,
+	); err != nil {
+		return nil, err
+	}
+
+	return &admin, nil
+}
 
 func (r *Repository) TotalCheckInRange(start time.Time, end time.Time, ctx context.Context) (int, error) {
 	const query = `
