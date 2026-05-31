@@ -10,7 +10,18 @@ func (r *Repository) LocationBySlug(slug string, ctx context.Context) (*model.Lo
 	db := r.db
 
 	const query = `
-		SELECT slug, name, isActive
+		SELECT 
+		id,
+		slug, 
+		name, 
+		address,
+		partnerid,
+		joindate,
+		capacity,
+		timezone,
+		isactive,
+		qrtoken,
+		qrlabel
 		FROM Locations 
 		WHERE slug=$1
 	`
@@ -20,9 +31,17 @@ func (r *Repository) LocationBySlug(slug string, ctx context.Context) (*model.Lo
 	var location model.Location
 
 	if err := row.Scan(
+		&location.Id,
 		&location.Slug,
 		&location.Name,
+		&location.Address,
+		&location.PartnerId,
+		&location.JoinDate,
+		&location.Capacity,
+		&location.Timezone,
 		&location.IsActive,
+		&location.QrToken,
+		&location.QrLabel,
 	); err != nil {
 		return nil, err
 	}

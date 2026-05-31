@@ -3,9 +3,12 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/latoiste/netspace/api"
 )
 
 // func (h *Handler) handleGetAnalyticsMetrics() http.HandlerFunc {
@@ -63,6 +66,43 @@ func (h *Handler) handleTopInterests() http.HandlerFunc {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func (h *Handler) handleLocationDetail() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		w.Header().Set("Content-Type", "application/json")
+		locationSlug := r.PathValue("slug")
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel()
+
+		location, err := h.repo.LocationBySlug(locationSlug, ctx)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		response := api.GetLocationDetailResponse{
+			Slug:       location.Slug,
+			Name:       location.Name,
+			Address:    location.Address,
+			PartnerId:  location.PartnerId,
+			JoinedDate: location.JoinDate.Format("02 Jan 2006"),
+			Capacity:   fmt.Sprintf("~ %v user", location.Capacity),
+			Timezone:   location.FormatTimezoneLabel(),
+			IsActive:   location.IsActive,
+			QrToken:    location.QrToken,
+			QrLabel:    location.QrLabel,
 		}
 
 		if err := json.NewEncoder(w).Encode(response); err != nil {

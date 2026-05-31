@@ -4,16 +4,25 @@ CREATE TABLE Locations (
 	id SERIAL PRIMARY KEY,
 	slug VARCHAR(55) UNIQUE NOT NULL,
 	name VARCHAR(100) UNIQUE NOT NULL,
-	isActive BOOL DEFAULT FALSE
+	address TEXT UNIQUE NOT NULL,
+	partnerId TEXT NOT NULL,
+	joinDate TIMESTAMPTZ DEFAULT NOW(),
+	capacity INT CHECK (capacity >= 1),
+	timezone TEXT DEFAULT 'Asia/Jakarta',
+	isActive BOOL DEFAULT TRUE,
+	qrToken TEXT NOT NULL,
+	qrLabel TEXT NOT NULL
 );
 
 CREATE TABLE Users (
-	id TEXT UNIQUE PRIMARY KEY,
+	id TEXT UNIQUE NOT NULL,
 	locationId INT REFERENCES Locations(id),
 	name VARCHAR(30),
 	slug VARCHAR(30),
 	age INT,
-	gender VARCHAR(6)
+	gender VARCHAR(6),
+	createdAt TIMESTAMPTZ DEFAULT NOW(),
+	isActive BOOL DEFAULT TRUE
 );
 
 CREATE TABLE Interests (
@@ -41,7 +50,7 @@ CREATE TABLE PrivateMessages (
 	senderId TEXT REFERENCES Users(id),
 	recipientId TEXT REFERENCES Users(id),
 	"message" TEXT NOT NULL,
-	"timestamp" TIMESTAMPTZ
+	"timestamp" TIMESTAMPTZ DEFAULT NOW
 );
 
 CREATE TABLE PublicMessages (
@@ -49,7 +58,7 @@ CREATE TABLE PublicMessages (
 	locationId INT REFERENCES Locations(id),
 	senderId   TEXT REFERENCES Users(id),
 	"message" TEXT NOT NULL,
-	"timestamp" TIMESTAMPTZ
+	"timestamp" TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE Group (
@@ -64,7 +73,7 @@ CREATE TABLE GroupMessages (
 	senderId   TEXT REFERENCES Users(id),
 	groupId TEXT REFERENCES Group(id),
 	"message" TEXT NOT NULL,
-	"timestamp" TIMESTAMPTZ
+	"timestamp" TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE Notifications (
@@ -75,7 +84,7 @@ CREATE TABLE Notifications (
 	avatarGradient TEXT NOT NULL,
 	title TEXT NOT NULL,
 	description TEXT NOT NULL,    
-	"timestamp" TIMESTAMPTZ,
+	"timestamp" TIMESTAMPTZ DEFAULT NOW(),
 	unread BOOL DEFAULT TRUE,
 	primaryLabel TEXT,
 	secondaryLabel TEXT
@@ -97,4 +106,4 @@ VALUES ('☕', 'Kopi'),
 
 SELECT * FROM Users;
 
-SELECT * FROM notifications;
+SELECT * FROM publicmessage;

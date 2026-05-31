@@ -24,6 +24,19 @@ type GetActiveUsersResponse struct {
 	Users []UserDTO
 }
 
+type GetLocationDetailResponse struct {
+	Slug       string `json:"slug"`
+	Name       string `json:"name"`
+	Address    string `json:"address"`
+	PartnerId  string `json:"partnerId"`
+	JoinedDate string `json:"joinedDate"`
+	Capacity   string `json:"capacity"`
+	Timezone   string `json:"timezone"`
+	IsActive   bool   `json:"isActive"`
+	QrToken    string `json:"qrToken"`
+	QrLabel    string `json:"qrLabel"`
+}
+
 func ConstructGetUsersResponse(users []model.User) GetUsersResponse {
 	onlineCount := len(users)
 	userDTOs := make([]UserDTO, len(users))
