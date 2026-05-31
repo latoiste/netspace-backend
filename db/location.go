@@ -63,3 +63,17 @@ func (r *Repository) LocationIdBySlug(slug string, ctx context.Context) (int, er
 
 	return id, nil
 }
+
+func (r *Repository) UpdateLocationIsActive(slug string, isActive bool, ctx context.Context) error {
+	const query = `
+		UPDATE locations
+		SET isactive = $1
+		WHERE slug = $2
+	`
+
+	_, err := r.db.ExecContext(ctx, query, isActive, slug)
+	if err != nil {
+		return err
+	}
+	return nil
+}

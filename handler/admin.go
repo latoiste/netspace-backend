@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -110,6 +111,46 @@ func (h *Handler) handleLocationDetail() http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+	}
+}
+
+func (h *Handler) handleToggleLocationStatus() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		w.Header().Set("Content-Type", "application/json")
+		locationSlug := r.PathValue("slug")
+
+		type Payload struct {
+			IsActive bool `json:"isActive"`
+		}
+
+		var reqBody Payload
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		err = json.Unmarshal(body, &reqBody)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel()
+
+		err = h.repo.UpdateLocationIsActive(locationSlug, reqBody.IsActive, ctx)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			w.Write([]byte("{\"success\": true}"))
+			return
+		}
+		w.Write([]byte("{\"success\": true}"))
 	}
 }
 
