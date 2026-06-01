@@ -25,10 +25,3 @@ type ActiveSession struct {
 	LocationID   int       `json:"locationId"`
 	LastActiveAt time.Time `json:"lastActiveAt"`
 }
-
-type AnalyticsData struct {
-	Label     string `json:"label"`
-	Value     string `json:"value"`
-	Delta     string `json:"delta"`
-	DeltaType string `json:"deltaType"`
-}

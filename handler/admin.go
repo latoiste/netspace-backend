@@ -12,47 +12,83 @@ import (
 	"github.com/latoiste/netspace/api"
 )
 
-// func (h *Handler) handleGetAnalyticsMetrics() http.HandlerFunc {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		defer r.Body.Close()
+func (h *Handler) handleAnalyticsMetrics() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
 
-// 		analytics := make([]model.AnalyticsData, 0, 4)
+		analytics := make([]api.AnalyticsDTO, 0, 3)
 
-// 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-// 		defer cancel()
+		now := time.Now()
 
-// 		checkInsToday, err := h.repo.TotalCheckInRange(
-// 			time.Now().Truncate(time.Hour*24),
-// 			time.Now(),
-// 			ctx,
-// 		)
-// 		if err != nil {
-// 			log.Println(err)
-// 			http.Error(w, err, http.StatusInternalServerError)
-// 			return
-// 		}
+		todayStart := time.Date(
+			now.Year(),
+			now.Month(),
+			now.Day(),
+			0, 0, 0, 0,
+			now.Location(),
+		)
+		todayCurrent := now
 
-// 		// ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
-// 		// defer cancel()
+		yesterdayStart := todayStart.AddDate(0, 0, -1)
 
-// 		// checkInsYesterday, err := h.repo.TotalCheckInRange(
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel()
 
-// 		// )
+		checkInToday, checkInYest, err := h.repo.CheckInAnalytics(yesterdayStart, todayStart, todayCurrent, ctx)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-// 		_ = model.AnalyticsData{
-// 			Label:     "Check-in Hari Ini",
-// 			Value:     string(checkInsToday),
-// 			Delta:     string(4),
-// 			DeltaType: "",
-// 		}
+		var checkInDeltaType string
+		if checkInToday >= checkInYest {
+			checkInDeltaType = "up"
+		} else {
+			checkInDeltaType = "down"
+		}
+		checkInAnalytics := api.ConstructAnalyticsDTO(checkInYest, checkInToday, "Check-in Hari Ini", checkInDeltaType)
 
-// 		if err := json.NewEncoder(w).Encode(analytics); err != nil {
-// 			log.Println(err)
-// 			http.Error(w, err.Error(), http.StatusInternalServerError)
-// 			return
-// 		}
-// 	}
-// }
+		ctx2, cancel2 := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel2()
+
+		activeUsersToday, activeUsersYest, err := h.repo.ActiveUsersAnalytics(yesterdayStart, todayStart, todayCurrent, ctx2)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		activeUsersAnalytics := api.ConstructAnalyticsDTO(activeUsersYest, activeUsersToday, "User Aktif Sekarang", "live")
+
+		ctx3, cancel3 := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel3()
+
+		messagesToday, messagesYest, err := h.repo.MessagesAnalytics(yesterdayStart, todayStart, todayCurrent, ctx3)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		var messagesDeltaType string
+		if messagesToday >= messagesYest {
+			messagesDeltaType = "up"
+		} else {
+			messagesDeltaType = "down"
+		}
+		messagesAnalytics := api.ConstructAnalyticsDTO(messagesYest, messagesToday, "Total konversasi hari ini", messagesDeltaType)
+
+		analytics = append(analytics, checkInAnalytics)
+		analytics = append(analytics, activeUsersAnalytics)
+		analytics = append(analytics, messagesAnalytics)
+
+		if err := json.NewEncoder(w).Encode(analytics); err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
 
 func (h *Handler) handleAdminLogin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

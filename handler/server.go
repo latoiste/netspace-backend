@@ -43,6 +43,7 @@ func (h *Handler) StartServer() {
 		r.Route("/admin", func(r chi.Router) {
 			r.Use(mw.Auth(h.auth))
 			r.Get("/analytics/interests", h.handleTopInterests())
+			r.Get("/dashboard/stats", h.handleAnalyticsMetrics())
 
 			r.Route("/locations", func(r chi.Router) {
 				r.Get("/{slug}", h.handleLocationDetail())

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"math"
 	"time"
 
@@ -52,6 +53,13 @@ type NotificationDTO struct {
 	Unread          bool   `json:"unread"`
 	PrimaryLabel    string `json:"primaryLabel,omitempty"`
 	SecondaryLabel  string `json:"secondaryLabel,omitempty"`
+}
+
+type AnalyticsDTO struct {
+	Label     string `json:"label"`
+	Value     string `json:"value"`
+	Delta     string `json:"delta"`
+	DeltaType string `json:"deltaType"`
 }
 
 func ConstructUserDTO(user model.User) UserDTO {
@@ -119,5 +127,27 @@ func ConstructNotificationDTO(notif model.Notification) NotificationDTO {
 		Unread:          notif.Unread,
 		PrimaryLabel:    notif.PrimaryLabel,
 		SecondaryLabel:  notif.SecondaryLabel,
+	}
+}
+
+func ConstructAnalyticsDTO(prevValue int, currentValue int, label string, deltaType string) AnalyticsDTO {
+	deltaPercentage := int(math.Round(float64(currentValue) / float64(prevValue+currentValue) * 100))
+
+	var delta string
+
+	switch deltaType {
+	case "down":
+		delta = fmt.Sprintf("↓ %v%% vs kemarin", deltaPercentage)
+	case "up":
+		delta = fmt.Sprintf("↑ %v%% vs kemarin", deltaPercentage)
+	case "live":
+		delta = "Live"
+	}
+
+	return AnalyticsDTO{
+		Label:     label,
+		Value:     fmt.Sprint(currentValue),
+		Delta:     delta,
+		DeltaType: deltaType,
 	}
 }

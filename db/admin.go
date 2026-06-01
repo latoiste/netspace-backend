@@ -70,6 +70,71 @@ func (r *Repository) TotalCheckInRange(start time.Time, end time.Time, ctx conte
 	return count, nil
 }
 
+func (r *Repository) TotalActiveUsersRange(start time.Time, end time.Time, ctx context.Context) (int, error) {
+	const query = `
+		SELECT COUNT(*)
+		FROM users
+		WHERE createdAt >= $1 AND createdAt < $2 AND isactive = true
+	`
+
+	row := r.db.QueryRowContext(
+		ctx,
+		query,
+		start,
+		end,
+	)
+
+	var count int
+
+	if err := row.Scan(
+		&count,
+	); err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func (r *Repository) TotalMessagesRange(start time.Time, end time.Time, ctx context.Context) (int, error) {
+	const query = `
+		SELECT
+		(
+			SELECT COUNT(*)
+			FROM PrivateMessages
+			WHERE timestamp >= $1 AND timestamp < $2
+		)
+		+
+		(
+			SELECT COUNT(*)
+			FROM PublicMessages
+			WHERE timestamp >= $1 AND timestamp < $2
+		)
+		+
+		(
+			SELECT COUNT(*)
+			FROM GroupMessages
+			WHERE timestamp >= $1 AND timestamp < $2
+		)
+    `
+
+	row := r.db.QueryRowContext(
+		ctx,
+		query,
+		start,
+		end,
+	)
+
+	var count int
+
+	if err := row.Scan(
+		&count,
+	); err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 func (r *Repository) ActiveUsers(locationId int, ctx context.Context) (int, error) {
 	const query = `
 		SELECT COUNT(*)
