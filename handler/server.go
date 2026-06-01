@@ -36,6 +36,8 @@ func (h *Handler) StartServer() {
 			r.Get("/sessions/logout", h.handleLogout())
 
 			r.Get("/notifications", h.handleNotification())
+
+			r.Get("/chats", h.handleChatList())
 		})
 
 		r.Post("/admin/login", h.handleAdminLogin())

@@ -49,7 +49,20 @@ func (h *Hub) persistGroupLoop() {
 		err := h.repo.InsertGroup(group, ctx)
 		if err != nil {
 			log.Println(err)
+			cancel()
 		}
+
+		chatGroup, ok := h.groups[group.Id]
+		if !ok {
+			log.Println(err)
+			cancel()
+			continue
+		}
+		err = h.repo.InsertGroupMember(group.Id, chatGroup.hostId, ctx)
+		if err != nil {
+			log.Println(err)
+		}
+
 		cancel()
 	}
 }

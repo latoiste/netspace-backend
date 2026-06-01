@@ -172,6 +172,7 @@ func (r *Repository) UserInterests(userId string, ctx context.Context) ([]model.
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var it model.Interest
@@ -212,6 +213,7 @@ func (r *Repository) UsersInLocation(locationId int, ctx context.Context) ([]mod
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var user model.User

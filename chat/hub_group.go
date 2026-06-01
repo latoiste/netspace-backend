@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -144,6 +145,15 @@ func (h *Hub) handleAcceptInvite(invite GroupInvite) {
 		client.sendEvent("member_joined", newMember)
 	}
 	group.memberIds[sender.UserId] = true
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	err := h.repo.InsertGroupMember(group.id, newMember.Id, ctx)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	log.Println("Member is added to group")
 	fmt.Println(group)
 }

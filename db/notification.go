@@ -75,6 +75,7 @@ func (r *Repository) NotificationByUserId(userId string, ctx context.Context) ([
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var notif model.Notification

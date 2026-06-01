@@ -37,6 +37,10 @@ type GetLocationDetailResponse struct {
 	QrLabel    string `json:"qrLabel"`
 }
 
+type GetChatListRespone struct {
+	Chats []MessageDTO `json:"chats"`
+}
+
 type AdminLoginResponse struct {
 	Success bool     `json:"success"`
 	Admin   AdminDTO `json:"admin"`
@@ -81,4 +85,11 @@ func ConstructGetActiveUsersResponse(users []model.User) []ActiveUserDTO {
 	}
 
 	return activeUserDTOs
+}
+
+func ConstructGetChatListResponse(privateMsgs []MessageDTO, groupMsgs []MessageDTO) GetChatListRespone {
+	messages := append(privateMsgs, groupMsgs...)
+	return GetChatListRespone{
+		Chats: messages,
+	}
 }

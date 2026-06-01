@@ -67,6 +67,17 @@ type HourlyCheckInDTO struct {
 	Value int    `json:"value"`
 }
 
+type MessageDTO struct {
+	Id             string `json:"id"`
+	Type           string `json:"type"`
+	Name           string `json:"name"`
+	Emoji          string `json:"emoji"`
+	AvatarGradient string `json:"avatarGradient"`
+	LastMessage    string `json:"lastMessage"`
+	Timestamp      string `json:"timestamp"`
+	Subtitle       string `json:"subtitle,omitempty"`
+}
+
 func ConstructUserDTO(user model.User) UserDTO {
 	interestDTOs := make([]InterestDTO, 0, len(user.Interests))
 
@@ -155,4 +166,30 @@ func ConstructAnalyticsDTO(prevValue int, currentValue int, label string, deltaT
 		Delta:     delta,
 		DeltaType: deltaType,
 	}
+}
+
+func ConstructPrivateMessageDTO(msg model.PrivateMessage, recipient model.User) MessageDTO {
+	return MessageDTO{
+		Id:             msg.RecipientId,
+		Type:           "dm",
+		Name:           recipient.Name,
+		Emoji:          "😮",
+		AvatarGradient: "linear-gradient(135deg, rgba(56,100,255,0.5), rgba(100,60,255,0.4))",
+		LastMessage:    msg.Message,
+		Timestamp:      msg.Timestamp.Local().Format("15:04"),
+	}
+}
+
+func ConstructGroupMessageDTO(msg model.GroupMessage, group model.Group) MessageDTO {
+	return MessageDTO{
+		Id:             group.Id,
+		Type:           "group",
+		Name:           group.Name,
+		Emoji:          "❓",
+		AvatarGradient: "linear-gradient(135deg, rgba(56,100,255,0.5), rgba(100,60,255,0.4))",
+		LastMessage:    msg.Message,
+		Timestamp:      msg.Timestamp.Local().Format("15:04"),
+		Subtitle:       "Group session",
+	}
+
 }

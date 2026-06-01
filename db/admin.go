@@ -177,6 +177,7 @@ func (r *Repository) GetTopInterests(ctx context.Context) ([]api.InterestPercent
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var it api.InterestPercentageDTO

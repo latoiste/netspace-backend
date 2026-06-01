@@ -61,10 +61,16 @@ CREATE TABLE PublicMessages (
 	"timestamp" TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE Group (
+CREATE TABLE Groups (
 	Id TEXT PRIMARY KEY NOT NULL,
 	Name TEXT,
 	IsActive BOOL DEFAULT TRUE	
+);
+
+CREATE TABLE GroupMembers (
+	groupid TEXT REFERENCES "groups"(id),
+	userid TEXT REFERENCES Users(id),
+	PRIMARY KEY(groupid, userid)
 );
 
 CREATE TABLE GroupMessages (
@@ -114,12 +120,13 @@ VALUES ('☕', 'Kopi'),
   ('📷', 'Fotografi'),
   ('🌱', 'Tanaman');
 
-SELECT * FROM Users;
+SELECT * FROM groups;
+SELECT * FROM groupmembers;
 SELECT * FROM UserInterests;
 SELECT * FROM Locations;
 
 SELECT * FROM interests;
-SELECT * FROM publicmessage;
+SELECT * FROM privatemessages;
 
 UPDATE users
 SET isActive = true
