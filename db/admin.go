@@ -193,37 +193,3 @@ func (r *Repository) GetTopInterests(ctx context.Context) ([]api.InterestPercent
 
 	return topInterests, nil
 }
-
-// func (r *Repository) GetAnalytics(ctx context.Context, from, to string) ([]model.AnalyticsData, error) {
-// 	rows, err := r.db.QueryContext(ctx, `
-// 		SELECT
-// 			DATE(created_at) as date,
-// 			COUNT(DISTINCT user_id) as active_users,
-// 			COUNT(DISTINCT session_token) as total_sessions,
-// 			0 as message_count
-// 		FROM users
-// 		WHERE DATE(created_at) BETWEEN $1 AND $2
-// 		GROUP BY DATE(created_at)
-// 		ORDER BY date ASC
-// 	`, from, to)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer rows.Close()
-
-// 	var result []model.AnalyticsData
-// 	for rows.Next() {
-// 		var a model.AnalyticsData
-// 		if err := rows.Scan(
-// 			&a.Date,
-// 			&a.ActiveUsers,
-// 			&a.TotalSessions,
-// 			&a.MessageCount,
-// 		); err != nil {
-// 			return nil, err
-// 		}
-// 		result = append(result, a)
-// 	}
-
-// 	return result, nil
-// }

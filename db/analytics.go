@@ -3,6 +3,8 @@ package db
 import (
 	"context"
 	"time"
+
+	"github.com/latoiste/netspace/api"
 )
 
 func (r *Repository) CheckInAnalytics(
@@ -86,4 +88,38 @@ func (r *Repository) MessagesAnalytics(
 	}
 
 	return today, yesterday, nil
+}
+
+func (r *Repository) HourlyCheckInAnalytics(bucket int, now time.Time, ctx context.Context) ([]api.HourlyCheckInDTO, error) {
+	results := make([]api.HourlyCheckInDTO, bucket)
+
+	currentHour := time.Date(
+		now.Year(),
+		now.Month(),
+		now.Day(),
+		now.Hour(), 0, 0, 0,
+		now.Location(),
+	)
+
+	for i := range bucket {
+		start := currentHour.Add(time.Duration(-i) * time.Hour)
+		end := start.Add(time.Hour)
+
+		count, err := r.TotalCheckInRange(
+			start.UTC(),
+			end.UTC(),
+			ctx,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		dto := api.HourlyCheckInDTO{
+			Label: start.Format("15:04"),
+			Value: count,
+		}
+		results[bucket-1-i] = dto
+	}
+
+	return results, nil
 }

@@ -62,6 +62,11 @@ type AnalyticsDTO struct {
 	DeltaType string `json:"deltaType"`
 }
 
+type HourlyCheckInDTO struct {
+	Label string `json:"label"`
+	Value int    `json:"value"`
+}
+
 func ConstructUserDTO(user model.User) UserDTO {
 	interestDTOs := make([]InterestDTO, 0, len(user.Interests))
 

@@ -90,6 +90,30 @@ func (h *Handler) handleAnalyticsMetrics() http.HandlerFunc {
 	}
 }
 
+func (h *Handler) handleHourlyCheckIn() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		now := time.Now()
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel()
+
+		response, err := h.repo.HourlyCheckInAnalytics(8, now, ctx)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 func (h *Handler) handleAdminLogin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
