@@ -75,6 +75,7 @@ type MessageDTO struct {
 	AvatarGradient string `json:"avatarGradient"`
 	LastMessage    string `json:"lastMessage"`
 	Timestamp      string `json:"timestamp"`
+	Unread         bool   `json:"unread"`
 	Subtitle       string `json:"subtitle,omitempty"`
 }
 
