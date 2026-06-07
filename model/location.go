@@ -6,17 +6,17 @@ import (
 )
 
 type Location struct {
-	Id        int
-	Slug      string
-	Name      string
-	Address   string
-	PartnerId string
-	JoinDate  time.Time
-	Capacity  int
-	Timezone  string
-	IsActive  bool
-	QrToken   string
-	QrLabel   string
+	Id        int       `json:"id"`
+	Slug      string    `json:"slug"`
+	Name      string    `json:"name"`
+	Address   string    `json:"address"`
+	PartnerId string    `json:"partnerId"`
+	JoinDate  time.Time `json:"joinDate"`
+	Capacity  int       `json:"capacity"`
+	Timezone  string    `json:"timezone"`
+	IsActive  bool      `json:"isActive"`
+	QrToken   string    `json:"qrToken"`
+	QrLabel   string    `json:"qrLabel"`
 }
 
 func (l *Location) FormatTimezoneLabel() string {
