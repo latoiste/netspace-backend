@@ -20,6 +20,10 @@ func (h *Hub) handleSendPrivateMsg(msg model.PrivateMessage) {
 		return
 	}
 
+	if _, ok := sender.BlockedBy[recipient.UserId]; ok {
+		return
+	}
+
 	newMsg := api.NewMessage{
 		MessageId: msg.MessageId,
 		Message:   msg.Message,
@@ -88,8 +92,12 @@ func (h *Hub) handleSendPublicMsg(msg model.PublicMessage) {
 		return
 	}
 
-	for _, client := range h.Clients {
-		if client.UserId != msg.SenderId {
+	for userId, client := range h.Clients {
+		if userId != msg.SenderId {
+			log.Println(sender.BlockedBy[userId])
+			if _, ok = sender.BlockedBy[userId]; ok {
+				continue
+			}
 			err = client.sendEvent("new_public_message", otherMsg)
 			if err != nil {
 				log.Println(err)
@@ -137,6 +145,9 @@ func (h *Hub) handleSendGroupMsg(msg model.GroupMessage) {
 
 	for memberId := range group.memberIds {
 		if memberId == sender.UserId {
+			continue
+		}
+		if _, ok = sender.BlockedBy[memberId]; ok {
 			continue
 		}
 		client, ok := h.Clients[memberId]

@@ -19,6 +19,7 @@ type Client struct {
 	Name         string
 	Emoji        string
 	LocationSlug string
+	BlockedBy    map[string]bool
 }
 
 func NewClient(hub *Hub, conn *websocket.Conn, userId string, name string, emoji string, locationSlug string) *Client {
@@ -30,6 +31,7 @@ func NewClient(hub *Hub, conn *websocket.Conn, userId string, name string, emoji
 		Name:         name,
 		Emoji:        emoji,
 		LocationSlug: locationSlug,
+		BlockedBy:    make(map[string]bool),
 	}
 }
 

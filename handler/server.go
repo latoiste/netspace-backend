@@ -38,6 +38,8 @@ func (h *Handler) StartServer() {
 			r.Get("/notifications", h.handleNotification())
 
 			r.Get("/chats", h.handleChatList())
+
+			r.Post("/users/{userId}/block", h.handleBlock())
 		})
 
 		r.Post("/admin/login", h.handleAdminLogin())

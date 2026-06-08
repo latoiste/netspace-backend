@@ -43,6 +43,16 @@ func (m *Manager) StartHub(locationSlug string) error {
 	return nil
 }
 
+func (m *Manager) AddToBlockList(senderId string, blockedUserId string) {
+	for _, hub := range m.Hubs {
+		blockedUser, ok := hub.Clients[blockedUserId]
+		if ok {
+			blockedUser.BlockedBy[senderId] = true
+			return
+		}
+	}
+}
+
 func (m *Manager) ForceLogoutUser(userId string) {
 	for _, hub := range m.Hubs {
 		client, ok := hub.Clients[userId]

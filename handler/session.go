@@ -90,6 +90,26 @@ func (h *Handler) handleCheckin() http.HandlerFunc {
 	}
 }
 
+func (h *Handler) handleBlock() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		blockedId := r.PathValue("userId")
+		sessionData, ok := r.Context().Value("SessionData").(model.SessionData)
+		if !ok {
+			log.Println(sessionData)
+			log.Println("Invalid session data value")
+			http.Error(w, "Invalid session data value", http.StatusUnauthorized)
+			return
+		}
+
+		userId := sessionData.UserId
+
+		h.manager.AddToBlockList(userId, blockedId)
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
 func (h *Handler) handleLogout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
