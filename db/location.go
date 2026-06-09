@@ -21,8 +21,11 @@ func (r *Repository) LocationBySlug(slug string, ctx context.Context) (*model.Lo
 		timezone,
 		isactive,
 		qrtoken,
-		qrlabel
-		FROM Locations 
+		qrlabel,
+		COALESCE(latitude, 0) AS latitude,
+		COALESCE(longitude, 0) AS longitude,
+		COALESCE(geofenceRadius, 100) AS geofenceRadius
+		FROM Locations
 		WHERE slug=$1
 	`
 
@@ -42,6 +45,9 @@ func (r *Repository) LocationBySlug(slug string, ctx context.Context) (*model.Lo
 		&location.IsActive,
 		&location.QrToken,
 		&location.QrLabel,
+		&location.Latitude,
+		&location.Longitude,
+		&location.GeofenceRadius,
 	); err != nil {
 		return nil, err
 	}

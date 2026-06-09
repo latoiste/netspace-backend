@@ -43,23 +43,19 @@ func (h *Hub) persistGroupMsgLoop() {
 }
 
 func (h *Hub) persistGroupLoop() {
-	for group := range h.persistGroup {
+	for req := range h.persistGroup {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 
-		err := h.repo.InsertGroup(group, ctx)
-		if err != nil {
-			log.Println(err)
-			cancel()
-		}
-
-		chatGroup, ok := h.groups[group.Id]
-		if !ok {
+		// Insert the group row first, then the host's membership (which has an FK
+		// to it). hostId comes in on the request, so this loop never reads the
+		// run()-owned h.groups map.
+		if err := h.repo.InsertGroup(req.group, ctx); err != nil {
 			log.Println(err)
 			cancel()
 			continue
 		}
-		err = h.repo.InsertGroupMember(group.Id, chatGroup.hostId, ctx)
-		if err != nil {
+
+		if err := h.repo.InsertGroupMember(req.group.Id, req.hostId, ctx); err != nil {
 			log.Println(err)
 		}
 
@@ -87,6 +83,25 @@ func (h *Hub) persistNotificationLoop() {
 		if err != nil {
 			log.Println(err)
 		}
+		cancel()
+	}
+}
+
+// notificationDismissReq is a "delete my notification" action: the notification
+// id plus the owner (so a user can only dismiss their own).
+type notificationDismissReq struct {
+	notificationId string
+	userId         string
+}
+
+func (h *Hub) persistNotificationDismissLoop() {
+	for req := range h.notificationDismiss {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+
+		if err := h.repo.DeleteNotification(req.notificationId, req.userId, ctx); err != nil {
+			log.Println(err)
+		}
+
 		cancel()
 	}
 }

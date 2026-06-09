@@ -20,12 +20,9 @@ func (h *Hub) handleSendPrivateMsg(msg model.PrivateMessage) {
 		return
 	}
 
-	if _, ok := sender.BlockedBy[recipient.UserId]; ok {
-		return
-	}
-
 	newMsg := api.NewMessage{
 		MessageId: msg.MessageId,
+		SenderId:  msg.SenderId,
 		Message:   msg.Message,
 		Timestamp: msg.Timestamp.Local().Format("15:04"),
 	}
@@ -43,13 +40,9 @@ func (h *Hub) handleSendPrivateMsg(msg model.PrivateMessage) {
 
 	h.persistPrivateMsg <- msg
 
-	err := recipient.sendEvent("new_message", recipientMsg)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	err = sender.sendEvent("new_message", senderMsg)
+	// Always echo the message back to the sender so their own thread updates,
+	// even if the recipient has blocked them (the sender isn't told).
+	err := sender.sendEvent("new_message", senderMsg)
 	if err != nil {
 		log.Println(err)
 		return
@@ -60,6 +53,23 @@ func (h *Hub) handleSendPrivateMsg(msg model.PrivateMessage) {
 		log.Println(err)
 		return
 	}
+
+	// If the recipient blocked the sender, don't deliver the message or the
+	// notification to them.
+	if h.isBlocked(msg.RecipientId, msg.SenderId) {
+		return
+	}
+
+	err = recipient.sendEvent("new_message", recipientMsg)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	// Notify the recipient ("X mengirim pesan") so the message surfaces in
+	// their notification list even if they aren't on the chat screen.
+	notif := model.NewMessageNotif(sender.Emoji, msg.Timestamp, sender.Name, msg.Message, sender.UserId)
+	h.sendNotification(recipient, notif)
 }
 
 func (h *Hub) handleSendPublicMsg(msg model.PublicMessage) {
@@ -92,17 +102,18 @@ func (h *Hub) handleSendPublicMsg(msg model.PublicMessage) {
 		return
 	}
 
-	for userId, client := range h.Clients {
-		if userId != msg.SenderId {
-			log.Println(sender.BlockedBy[userId])
-			if _, ok = sender.BlockedBy[userId]; ok {
-				continue
-			}
-			err = client.sendEvent("new_public_message", otherMsg)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
+	for _, client := range h.Clients {
+		if client.UserId == msg.SenderId {
+			continue
+		}
+		// Skip clients who have blocked the sender.
+		if h.isBlocked(client.UserId, msg.SenderId) {
+			continue
+		}
+		err = client.sendEvent("new_public_message", otherMsg)
+		if err != nil {
+			log.Println(err)
+			continue
 		}
 	}
 }
@@ -120,8 +131,9 @@ func (h *Hub) handleSendGroupMsg(msg model.GroupMessage) {
 		return
 	}
 
-	newMsg := api.NewPublicMessage{
+	newMsg := api.NewGroupMessage{
 		MessageId:   msg.MessageId,
+		GroupId:     msg.GroupId,
 		SenderId:    msg.SenderId,
 		SenderName:  sender.Name,
 		SenderEmoji: sender.Emoji,
@@ -147,7 +159,8 @@ func (h *Hub) handleSendGroupMsg(msg model.GroupMessage) {
 		if memberId == sender.UserId {
 			continue
 		}
-		if _, ok = sender.BlockedBy[memberId]; ok {
+		// Skip members who have blocked the sender.
+		if h.isBlocked(memberId, sender.UserId) {
 			continue
 		}
 		client, ok := h.Clients[memberId]

@@ -8,6 +8,7 @@ type CreateUserRequest struct {
 	Slug         string           `json:"slug"`
 	Age          int              `json:"age"`
 	Gender       string           `json:"gender"`
+	Occupation   string           `json:"occupation"`
 	Interests    []model.Interest `json:"interests"`
 }
 

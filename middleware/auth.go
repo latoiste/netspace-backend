@@ -19,7 +19,7 @@ func (m *Middleware) Auth(a *auth.Auth) func(next http.Handler) http.Handler {
 			}
 
 			if m.blacklist.IsBlacklisted(tokenString) {
-				log.Println("Token is invalid")
+				log.Println("Token is blacklisted")
 				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
@@ -46,7 +46,6 @@ func (m *Middleware) Auth(a *auth.Auth) func(next http.Handler) http.Handler {
 			ctx := context.WithValue(r.Context(), "SessionData", sessionData)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
-			// next.ServeHTTP(w, r)
 		})
 	}
 }

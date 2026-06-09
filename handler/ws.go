@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/latoiste/netspace/api"
 	"github.com/latoiste/netspace/auth"
 	"github.com/latoiste/netspace/chat"
 )
@@ -70,7 +71,7 @@ func (h *Handler) handleWs(manager *chat.Manager) http.HandlerFunc {
 			conn,
 			userId,
 			user.Name,
-			"😮",
+			api.EmojiForUser(userId),
 			locationSlug,
 		)
 
@@ -80,6 +81,17 @@ func (h *Handler) handleWs(manager *chat.Manager) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			conn.Close()
 			return
+		}
+
+		// A prior disconnect (network blip, tab reload, reconnect) flips the
+		// user's isActive flag to false. Nothing else restores it, so without
+		// this a reconnected user stays filtered out of the roster fetch
+		// (/api/locations/{slug}/users WHERE isActive = true) and silently
+		// "disappears" even though their socket is live again.
+		ctx3, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel()
+		if err := h.repo.UpdateUserIsActive(userId, true, ctx3); err != nil {
+			log.Println("failed to mark user active on connect:", err)
 		}
 
 		go client.ReadPump()

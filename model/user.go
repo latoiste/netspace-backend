@@ -18,6 +18,7 @@ type User struct {
 	Name       string
 	Age        int
 	Gender     string
+	Occupation string
 	Slug       string
 	Emoji      string
 	LocationId int

@@ -17,6 +17,9 @@ type BaseMessage struct {
 type PrivateMessage struct {
 	BaseMessage
 	RecipientId string
+	// IsRead is the read receipt: true once the recipient has opened the chat
+	// and seen this message. Only meaningful from the sender's perspective.
+	IsRead bool
 }
 
 type PublicMessage struct {

@@ -63,24 +63,16 @@ func (h *Handler) handleLocationUsers() http.HandlerFunc {
 
 		response := api.ConstructGetUsersResponse(users)
 
-		sessionData, ok := r.Context().Value("SessionData").(model.SessionData)
-		if !ok {
-			log.Println("Invalid session data value")
-			http.Error(w, "Invalid session data value", http.StatusUnauthorized)
-			return
+		// Filter the requesting user out of the "who's here" list when a session
+		// is present. The auth middleware may be disabled in dev (no SessionData),
+		// in which case we simply return the full list instead of failing.
+		if sessionData, ok := r.Context().Value("SessionData").(model.SessionData); ok && sessionData.UserId != "" {
+			userId := sessionData.UserId
+			response.Users = slices.DeleteFunc(response.Users, func(u api.UserDTO) bool {
+				return u.Id == userId
+			})
+			response.OnlineCount = len(response.Users)
 		}
-
-		userId := sessionData.UserId
-
-		if userId == "" {
-			log.Println("No UserId in token")
-			http.Error(w, "No UserId in token", http.StatusInternalServerError)
-			return
-		}
-
-		response.Users = slices.DeleteFunc(response.Users, func(u api.UserDTO) bool {
-			return u.Id == userId
-		})
 
 		if err = json.NewEncoder(w).Encode(response); err != nil {
 			log.Println(err)

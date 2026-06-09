@@ -34,17 +34,7 @@ func (h *Handler) handleNotification() http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
 
-		_, err := h.repo.NotificationByUserId(userId, ctx)
-		if err != nil {
-			log.Println(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
-		defer cancel()
-
-		notifs, err := h.repo.NotificationByUserId(userId, ctx2)
+		notifs, err := h.repo.NotificationByUserId(userId, ctx)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

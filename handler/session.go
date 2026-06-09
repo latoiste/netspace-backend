@@ -71,6 +71,7 @@ func (h *Handler) handleCheckin() http.HandlerFunc {
 			LocationId: locationId,
 			Age:        reqBody.Age,
 			Gender:     reqBody.Gender,
+			Occupation: reqBody.Occupation,
 			Interests:  reqBody.Interests,
 			Slug:       reqBody.Slug,
 		}
@@ -80,6 +81,7 @@ func (h *Handler) handleCheckin() http.HandlerFunc {
 		if err = h.repo.InsertUser(user, ctx3); err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		if err = json.NewEncoder(w).Encode(response); err != nil {
@@ -87,26 +89,6 @@ func (h *Handler) handleCheckin() http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-	}
-}
-
-func (h *Handler) handleBlock() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-
-		blockedId := r.PathValue("userId")
-		sessionData, ok := r.Context().Value("SessionData").(model.SessionData)
-		if !ok {
-			log.Println(sessionData)
-			log.Println("Invalid session data value")
-			http.Error(w, "Invalid session data value", http.StatusUnauthorized)
-			return
-		}
-
-		userId := sessionData.UserId
-
-		h.manager.AddToBlockList(userId, blockedId)
-		w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -130,5 +112,16 @@ func (h *Handler) handleLogout() http.HandlerFunc {
 		defer cancel()
 
 		h.repo.UpdateUserIsActive(userId, false, ctx)
+
+		// Chat data is session-scoped: wipe everything this user generated so it
+		// doesn't linger after they leave. Best-effort — logout still succeeds
+		// even if the purge fails (the token is already blacklisted).
+		if err := h.repo.DeleteUserChatData(userId, ctx); err != nil {
+			log.Println("Failed to purge chat data on logout:", err)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]bool{"success": true})
 	}
 }

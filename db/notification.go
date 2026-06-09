@@ -19,9 +19,11 @@ func (r *Repository) InsertNotification(notif model.Notification, userId string,
 			"timestamp",
 			unread,
 			primarylabel,
-			secondarylabel
+			secondarylabel,
+			groupid,
+			senderid
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	`
 
 	_, err := r.db.ExecContext(
@@ -38,6 +40,8 @@ func (r *Repository) InsertNotification(notif model.Notification, userId string,
 		notif.Unread,
 		notif.PrimaryLabel,
 		notif.SecondaryLabel,
+		notif.GroupId,
+		notif.SenderId,
 	)
 
 	if err != nil {
@@ -60,7 +64,9 @@ func (r *Repository) NotificationByUserId(userId string, ctx context.Context) ([
 			"timestamp",
 			unread,
 			COALESCE(primaryLabel, ''),
-			COALESCE(secondaryLabel, '')
+			COALESCE(secondaryLabel, ''),
+			COALESCE(groupid, ''),
+			COALESCE(senderid, '')
 		FROM notifications
 		WHERE userid = $1
 	`
@@ -91,6 +97,8 @@ func (r *Repository) NotificationByUserId(userId string, ctx context.Context) ([
 			&notif.Unread,
 			&notif.PrimaryLabel,
 			&notif.SecondaryLabel,
+			&notif.GroupId,
+			&notif.SenderId,
 		)
 		if err != nil {
 			return nil, err
@@ -99,6 +107,38 @@ func (r *Repository) NotificationByUserId(userId string, ctx context.Context) ([
 		notifications = append(notifications, notif)
 	}
 	return notifications, nil
+}
+
+// DeleteNotification removes a single notification, but only if it belongs to
+// the requester (ownership check) — so tapping a notification dismisses it for
+// good instead of it reappearing on the next /api/notifications fetch.
+func (r *Repository) DeleteNotification(notificationId string, userId string, ctx context.Context) error {
+	const query = `DELETE FROM notifications WHERE id = $1 AND userid = $2`
+
+	_, err := r.db.ExecContext(ctx, query, notificationId, userId)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteGroupInviteNotif removes a user's group-invite notification(s) for a
+// given group, once they've accepted or rejected it — so a resolved invite
+// disappears for good instead of reappearing (with stale Accept/Reject buttons)
+// on the next /api/notifications fetch.
+func (r *Repository) DeleteGroupInviteNotif(userId string, groupId string, ctx context.Context) error {
+	const query = `
+		DELETE FROM notifications
+		WHERE userid = $1 AND "type" = 'group_invite' AND groupid = $2
+	`
+
+	_, err := r.db.ExecContext(ctx, query, userId, groupId)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *Repository) UpdateNotificationUnread(notificationId string, unread bool, ctx context.Context) error {
