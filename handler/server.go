@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -78,12 +79,19 @@ func (h *Handler) StartServer() {
 		})
 	})
 
-	server := http.Server{
-		Handler: r,
-		Addr:    ":" + "8080",
+	// Honour the platform's PORT (Railway/Render/Cloud Run inject it); fall back
+	// to 8080 for local dev.
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
 
-	log.Println("Server is listening on port 8080")
+	server := http.Server{
+		Handler: r,
+		Addr:    ":" + port,
+	}
+
+	log.Println("Server is listening on port " + port)
 	err := server.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)

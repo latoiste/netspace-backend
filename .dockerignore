@@ -1,0 +1,7 @@
+# Never bake secrets or local cruft into the image
+.env
+.git
+.gitignore
+*.md
+Dockerfile
+.dockerignore
