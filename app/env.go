@@ -20,8 +20,11 @@ type Env struct {
 }
 
 func NewEnv() *Env {
+	// Load a local .env if present (dev). In production (Railway etc.) there is
+	// no .env file — the variables come from the platform environment and are
+	// read via os.Getenv below — so a missing file must NOT be fatal.
 	if err := godotenv.Load(); err != nil {
-		log.Fatal(err)
+		log.Println("No .env file loaded, using environment variables:", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
