@@ -3,17 +3,19 @@ package api
 import (
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/latoiste/netspace/model"
 )
 
 type UserDTO struct {
-	Id        string        `json:"id"`
-	Slug      string        `json:"slug"`
-	Name      string        `json:"name"`
-	Emoji     string        `json:"emoji"`
-	Interests []InterestDTO `json:"interests"`
+	Id         string        `json:"id"`
+	Slug       string        `json:"slug"`
+	Name       string        `json:"name"`
+	Emoji      string        `json:"emoji"`
+	Occupation string        `json:"occupation"`
+	Interests  []InterestDTO `json:"interests"`
 }
 
 type InterestDTO struct {
@@ -23,7 +25,7 @@ type InterestDTO struct {
 
 type InterestPercentageDTO struct {
 	InterestDTO
-	Percentage int `json:"Percentage"`
+	Percentage int `json:"percentage"`
 }
 
 type ActiveUserDTO struct {
@@ -53,6 +55,8 @@ type NotificationDTO struct {
 	Unread          bool   `json:"unread"`
 	PrimaryLabel    string `json:"primaryLabel,omitempty"`
 	SecondaryLabel  string `json:"secondaryLabel,omitempty"`
+	GroupId         string `json:"groupId,omitempty"`
+	SenderId        string `json:"senderId,omitempty"`
 }
 
 type AnalyticsDTO struct {
@@ -88,11 +92,12 @@ func ConstructUserDTO(user model.User) UserDTO {
 	}
 
 	return UserDTO{
-		Id:        user.Id,
-		Slug:      user.Slug,
-		Name:      user.Name,
-		Emoji:     "😮",
-		Interests: interestDTOs,
+		Id:         user.Id,
+		Slug:       user.Slug,
+		Name:       user.Name,
+		Emoji:      EmojiForUser(user.Id),
+		Occupation: user.Occupation,
+		Interests:  interestDTOs,
 	}
 }
 
@@ -125,7 +130,7 @@ func ConstructActiveUserDTO(user model.User) ActiveUserDTO {
 	return ActiveUserDTO{
 		Id:        user.Id,
 		Name:      user.Name,
-		Avatar:    "😮",
+		Avatar:    EmojiForUser(user.Id),
 		Gender:    user.Gender,
 		Interests: interestDTOs,
 		Duration:  int(math.Floor(duration)),
@@ -144,11 +149,16 @@ func ConstructNotificationDTO(notif model.Notification) NotificationDTO {
 		Unread:          notif.Unread,
 		PrimaryLabel:    notif.PrimaryLabel,
 		SecondaryLabel:  notif.SecondaryLabel,
+		GroupId:         notif.GroupId,
+		SenderId:        notif.SenderId,
 	}
 }
 
 func ConstructAnalyticsDTO(prevValue int, currentValue int, label string, deltaType string) AnalyticsDTO {
-	deltaPercentage := int(math.Round(float64(currentValue) / float64(prevValue+currentValue) * 100))
+	var deltaPercentage int
+	if total := prevValue + currentValue; total != 0 {
+		deltaPercentage = int(math.Round(float64(currentValue) / float64(total) * 100))
+	}
 
 	var delta string
 
@@ -174,10 +184,91 @@ func ConstructPrivateMessageDTO(msg model.PrivateMessage, recipient model.User) 
 		Id:             msg.RecipientId,
 		Type:           "dm",
 		Name:           recipient.Name,
-		Emoji:          "😮",
+		Emoji:          EmojiForUser(recipient.Id),
 		AvatarGradient: "linear-gradient(135deg, rgba(56,100,255,0.5), rgba(100,60,255,0.4))",
 		LastMessage:    msg.Message,
 		Timestamp:      msg.Timestamp.Local().Format("15:04"),
+	}
+}
+
+// ── Chat history DTOs (REST: load past messages on chat open) ──
+
+type ChatMessageDTO struct {
+	Id        string `json:"id"`
+	Message   string `json:"message"`
+	Timestamp string `json:"timestamp"`
+	IsMine    bool   `json:"isMine"`
+	IsRead    bool   `json:"isRead"`
+}
+
+// PublicChatMessageDTO mirrors the live new_public_message wire shape so the
+// public room can render REST history and live events with the same code path.
+type PublicChatMessageDTO struct {
+	Id          string `json:"id"`
+	SenderId    string `json:"senderId"`
+	SenderName  string `json:"senderName"`
+	SenderEmoji string `json:"senderEmoji"`
+	Message     string `json:"message"`
+	Timestamp   string `json:"timestamp"`
+	IsMine      bool   `json:"isMine"`
+}
+
+type GroupChatMessageDTO struct {
+	Id          string `json:"id"`
+	SenderId    string `json:"senderId"`
+	SenderName  string `json:"senderName"`
+	SenderEmoji string `json:"senderEmoji"`
+	Message     string `json:"message"`
+	Timestamp   string `json:"timestamp"`
+	IsMine      bool   `json:"isMine"`
+}
+
+type DMPartnerDTO struct {
+	Name       string `json:"name"`
+	Emoji      string `json:"emoji"`
+	Occupation string `json:"occupation"`
+	Interests  string `json:"interests"`
+	IsOnline   bool   `json:"isOnline"`
+}
+
+type GroupMemberDTO struct {
+	Id     string `json:"id"`
+	Name   string `json:"name"`
+	Emoji  string `json:"emoji"`
+	IsHost bool   `json:"isHost"`
+}
+
+type GroupSummaryDTO struct {
+	Name  string `json:"name"`
+	Emoji string `json:"emoji"`
+}
+
+// InterestsToString renders interests as "☕ Kopi, 📚 Buku" for the DM header.
+func InterestsToString(interests []model.Interest) string {
+	parts := make([]string, 0, len(interests))
+	for _, i := range interests {
+		parts = append(parts, fmt.Sprintf("%s %s", i.Emoji, i.Label))
+	}
+	return strings.Join(parts, ", ")
+}
+
+func ConstructChatMessageDTO(msg model.PrivateMessage, myId string) ChatMessageDTO {
+	return ChatMessageDTO{
+		Id:        msg.MessageId,
+		Message:   msg.Message,
+		Timestamp: msg.Timestamp.Local().Format("15:04"),
+		IsMine:    msg.SenderId == myId,
+		IsRead:    msg.IsRead,
+	}
+}
+
+func ConstructDMPartnerDTO(partner model.User) DMPartnerDTO {
+	return DMPartnerDTO{
+		Name:       partner.Name,
+		Emoji:      EmojiForUser(partner.Id),
+		Occupation: partner.Occupation,
+		Interests:  InterestsToString(partner.Interests),
+		IsOnline:   partner.IsActive,
 	}
 }
 
@@ -186,11 +277,36 @@ func ConstructGroupMessageDTO(msg model.GroupMessage, group model.Group) Message
 		Id:             group.Id,
 		Type:           "group",
 		Name:           group.Name,
-		Emoji:          "❓",
+		Emoji:          "☕",
 		AvatarGradient: "linear-gradient(135deg, rgba(56,100,255,0.5), rgba(100,60,255,0.4))",
 		LastMessage:    msg.Message,
 		Timestamp:      msg.Timestamp.Local().Format("15:04"),
 		Subtitle:       "Group session",
 	}
 
+}
+
+// ConstructGroupSummaryDTO builds a chat-list entry for a group the user belongs
+// to, whether or not it has any messages yet. A group with no messages shows a
+// gentle placeholder so it still appears in the list.
+func ConstructGroupSummaryDTO(groupId, name, lastMessage string, hasMessage bool, ts time.Time, hasTimestamp bool) MessageDTO {
+	preview := "Belum ada pesan"
+	if hasMessage {
+		preview = lastMessage
+	}
+	timestamp := ""
+	if hasTimestamp {
+		timestamp = ts.Local().Format("15:04")
+	}
+
+	return MessageDTO{
+		Id:             groupId,
+		Type:           "group",
+		Name:           name,
+		Emoji:          "☕",
+		AvatarGradient: "linear-gradient(135deg, rgba(56,100,255,0.5), rgba(100,60,255,0.4))",
+		LastMessage:    preview,
+		Timestamp:      timestamp,
+		Subtitle:       "Group session",
+	}
 }

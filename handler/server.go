@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
@@ -18,6 +19,20 @@ var upgrader = websocket.Upgrader{
 }
 
 func (h *Handler) StartServer() {
+	// Clear stale "active" flags left by a previous run that died before its
+	// disconnect handlers fired. On a fresh boot nobody holds a live socket yet,
+	// so any isactive=true row is a ghost that would otherwise inflate the admin
+	// roster and analytics until it happened to reconnect or time out.
+	resetCtx, resetCancel := context.WithTimeout(context.Background(), time.Second*5)
+	if err := h.repo.DeactivateAllUsers(resetCtx); err != nil {
+		log.Println("failed to reset active users on startup:", err)
+	}
+	resetCancel()
+
+	// Keep the shared public timeline bounded: sweep out messages older than the
+	// retention window now and hourly thereafter.
+	go h.runPublicMessageRetention()
+
 	mw := mw.NewMiddleware(h.blacklist)
 
 	r := chi.NewRouter()
@@ -38,6 +53,9 @@ func (h *Handler) StartServer() {
 			r.Get("/notifications", h.handleNotification())
 
 			r.Get("/chats", h.handleChatList())
+			r.Get("/chats/{userId}/messages", h.handleDMHistory())
+			r.Get("/groups/{groupId}/messages", h.handleGroupHistory())
+			r.Get("/locations/{slug}/public-messages", h.handlePublicHistory())
 		})
 
 		r.Post("/admin/login", h.handleAdminLogin())
@@ -69,5 +87,34 @@ func (h *Handler) StartServer() {
 	err := server.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+// publicMessageRetention is how long a public-room message lives before the
+// hourly sweep removes it. Matches the window the history endpoint serves.
+const publicMessageRetention = 24 * time.Hour
+
+// runPublicMessageRetention deletes public messages older than the retention
+// window on boot and once an hour after, so the venue's shared timeline stays
+// bounded and relevant to the current crowd.
+func (h *Handler) runPublicMessageRetention() {
+	sweep := func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+		removed, err := h.repo.DeletePublicMessagesBefore(time.Now().Add(-publicMessageRetention), ctx)
+		if err != nil {
+			log.Println("public retention sweep:", err)
+			return
+		}
+		if removed > 0 {
+			log.Printf("public retention: removed %d old message(s)", removed)
+		}
+	}
+
+	sweep()
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for range ticker.C {
+		sweep()
 	}
 }

@@ -23,6 +23,7 @@ type UserLeft struct {
 
 type NewMessage struct {
 	MessageId string `json:"id"`
+	SenderId  string `json:"senderId"`
 	Message   string `json:"message"`
 	Timestamp string `json:"timestamp"`
 	IsMine    bool   `json:"isMine"`
@@ -60,6 +61,7 @@ type TypingEvent struct {
 
 type NewGroupMessage struct {
 	MessageId   string `json:"id"`
+	GroupId     string `json:"groupId"`
 	SenderId    string `json:"senderId"`
 	SenderName  string `json:"senderName"`
 	SenderEmoji string `json:"senderEmoji"`
@@ -95,6 +97,27 @@ type MemberLeft struct {
 
 type GroupDissolved struct {
 	GroupId string `json:"groupId"`
+}
+
+// GroupRenamed tells every member a group was renamed so their open views and
+// chat list update live.
+type GroupRenamed struct {
+	GroupId string `json:"groupId"`
+	Name    string `json:"name"`
+}
+
+// ForceLogout tells a client an admin has ended its session. The frontend
+// reacts by tearing the session down (blacklisting its token, stopping
+// reconnection, and returning to the entry screen) instead of silently
+// reconnecting — which would put the user straight back online.
+type ForceLogout struct {
+	Reason string `json:"reason"`
+}
+
+// MessagesRead notifies the sender that ReaderId has opened their chat and read
+// the sender's messages, so the sender's bubbles flip to blue double-checks.
+type MessagesRead struct {
+	ReaderId string `json:"readerId"`
 }
 
 // ======================
@@ -137,10 +160,33 @@ type InviteToGroup struct {
 	UserIds []string `json:"userIds"`
 }
 
+type RenameGroup struct {
+	GroupId string `json:"groupId"`
+	Name    string `json:"name"`
+}
+
 type GroupInviteResponse struct {
 	GroupId string `json:"groupId"`
 }
 
+type BlockUser struct {
+	UserId string `json:"userId"`
+}
+
+type UnblockUser struct {
+	UserId string `json:"userId"`
+}
+
+// MarkRead is sent when the user opens a DM: "I've read the messages SenderId
+// sent me." The hub flips those messages to read and tells SenderId.
+type MarkRead struct {
+	SenderId string `json:"senderId"`
+}
+
 type NotificationRead struct {
+	NotificationId string `json:"notificationId"`
+}
+
+type NotificationDismiss struct {
 	NotificationId string `json:"notificationId"`
 }

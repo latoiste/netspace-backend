@@ -12,13 +12,14 @@ import (
 
 func (r *Repository) UserById(userId string, ctx context.Context) (*model.User, error) {
 	const query = `
-		SELECT 
+		SELECT
 			id,
 			locationId,
 			name,
 			slug,
 			age,
 			gender,
+			COALESCE(occupation, '') AS occupation,
 			createdAt,
 			isActive
 		FROM Users
@@ -36,6 +37,7 @@ func (r *Repository) UserById(userId string, ctx context.Context) (*model.User, 
 		&user.Slug,
 		&user.Age,
 		&user.Gender,
+		&user.Occupation,
 		&user.CreatedAt,
 		&user.IsActive,
 	); err != nil {
@@ -59,17 +61,18 @@ func (r *Repository) InsertUser(user model.User, ctx context.Context) error {
 	db := r.db
 
 	const query = `
-		INSERT INTO Users 
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO Users (id, locationId, name, slug, age, gender, occupation)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
 	_, err := db.ExecContext(ctx, query,
 		user.Id,
+		user.LocationId,
 		user.Name,
+		user.Slug,
 		user.Age,
 		user.Gender,
-		user.Slug,
-		user.LocationId,
+		user.Occupation,
 	)
 	if err != nil {
 		return err
@@ -192,13 +195,14 @@ func (r *Repository) UserInterests(userId string, ctx context.Context) ([]model.
 
 func (r *Repository) UsersInLocation(locationId int, ctx context.Context) ([]model.User, error) {
 	const query = `
-		SELECT 
+		SELECT
 			u.id,
 			u.locationId,
 			u.name,
 			u.slug,
 			u.age,
 			u.gender,
+			COALESCE(u.occupation, '') AS occupation,
 			u.createdAt,
 			u.isActive
 		FROM Locations l
@@ -224,6 +228,7 @@ func (r *Repository) UsersInLocation(locationId int, ctx context.Context) ([]mod
 			&user.Slug,
 			&user.Age,
 			&user.Gender,
+			&user.Occupation,
 			&user.CreatedAt,
 			&user.IsActive,
 		)
@@ -257,4 +262,58 @@ func (r *Repository) UpdateUserIsActive(userId string, isActive bool, ctx contex
 	}
 
 	return nil
+}
+
+// DeactivateAllUsers flips every still-active user to inactive. Called once on
+// backend startup to clear "ghosts" — users left marked active because the
+// previous process died before its per-socket disconnect handlers could flip
+// them off. After a restart nobody has a live socket yet, so the only correct
+// state is everyone inactive; real users re-arm isactive when they reconnect.
+func (r *Repository) DeactivateAllUsers(ctx context.Context) error {
+	query := `
+		UPDATE users
+		SET isactive = false
+		WHERE isactive = true
+	`
+
+	_, err := r.db.ExecContext(ctx, query)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteUserChatData purges the private things a user generated — their DMs (on
+// both sides of the conversation), group messages, group memberships and
+// notifications — so a session leaves no *personal* chat history behind on
+// logout. The Users row itself is kept (marked inactive) so analytics still add
+// up. Runs in a single transaction; child tables reference Users, so deleting
+// the child rows never trips a foreign-key constraint.
+//
+// Public room messages are deliberately NOT deleted here: the public room is a
+// shared, venue-scoped timeline, so removing one person's lines when they leave
+// would tear holes in the conversation everyone else can see. Public messages
+// instead age out via a time-based retention sweep (DeletePublicMessagesBefore).
+func (r *Repository) DeleteUserChatData(userId string, ctx context.Context) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmts := []string{
+		`DELETE FROM PrivateMessages WHERE senderId = $1 OR recipientId = $1`,
+		`DELETE FROM GroupMessages WHERE senderId = $1`,
+		`DELETE FROM GroupMembers WHERE userId = $1`,
+		`DELETE FROM Notifications WHERE userId = $1`,
+	}
+
+	for _, q := range stmts {
+		if _, err := tx.ExecContext(ctx, q, userId); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }

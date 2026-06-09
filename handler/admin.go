@@ -49,16 +49,13 @@ func (h *Handler) handleAnalyticsMetrics() http.HandlerFunc {
 		}
 		checkInAnalytics := api.ConstructAnalyticsDTO(checkInYest, checkInToday, "Check-in Hari Ini", checkInDeltaType)
 
-		ctx2, cancel2 := context.WithTimeout(context.Background(), time.Second*2)
-		defer cancel2()
-
-		activeUsersToday, activeUsersYest, err := h.repo.ActiveUsersAnalytics(yesterdayStart, todayStart, todayCurrent, ctx2)
-		if err != nil {
-			log.Println(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		activeUsersAnalytics := api.ConstructAnalyticsDTO(activeUsersYest, activeUsersToday, "User Aktif Sekarang", "live")
+		// "User Aktif Sekarang" = live WebSocket connections right now, not the
+		// DB isactive flag. The flag drifts: a process killed before its
+		// disconnect handlers run leaves ghosts marked active, and the previous
+		// query also only counted users created *today*. Counting live sockets
+		// reflects who is actually connected this instant.
+		activeNow := h.manager.TotalOnline()
+		activeUsersAnalytics := api.ConstructAnalyticsDTO(0, activeNow, "User Aktif Sekarang", "live")
 
 		ctx3, cancel3 := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel3()
@@ -76,7 +73,7 @@ func (h *Handler) handleAnalyticsMetrics() http.HandlerFunc {
 		} else {
 			messagesDeltaType = "down"
 		}
-		messagesAnalytics := api.ConstructAnalyticsDTO(messagesYest, messagesToday, "Total konversasi hari ini", messagesDeltaType)
+		messagesAnalytics := api.ConstructAnalyticsDTO(messagesYest, messagesToday, "Total Konversasi Hari Ini", messagesDeltaType)
 
 		analytics = append(analytics, checkInAnalytics)
 		analytics = append(analytics, activeUsersAnalytics)
@@ -117,37 +114,39 @@ func (h *Handler) handleHourlyCheckIn() http.HandlerFunc {
 func (h *Handler) handleAdminLogin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
+		w.Header().Set("Content-Type", "application/json")
+
+		writeLoginError := func(status int, message string) {
+			w.WriteHeader(status)
+			json.NewEncoder(w).Encode(api.AdminLoginResponse{
+				Success: false,
+				Error:   message,
+			})
+		}
 
 		var reqBody api.AdminLoginRequest
 
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Println(err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			w.Write([]byte(
-				`{
-					\"success\": false,
-					\"error\": \"Username dan password harus diisi\"
-				}`,
-			))
+			writeLoginError(http.StatusBadRequest, "Username dan password harus diisi")
 			return
 		}
 
 		err = json.Unmarshal(body, &reqBody)
 		if err != nil {
 			log.Println(err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			w.Write([]byte(
-				`{
-					\"success\": false,
-					\"error\": \"Username dan password harus diisi\"
-				}`,
-			))
+			writeLoginError(http.StatusBadRequest, "Username dan password harus diisi")
 			return
 		}
 
 		username := reqBody.Username
 		password := reqBody.Password
+
+		if username == "" || password == "" {
+			writeLoginError(http.StatusBadRequest, "Username dan password harus diisi")
+			return
+		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
@@ -155,30 +154,33 @@ func (h *Handler) handleAdminLogin() http.HandlerFunc {
 		admin, err := h.repo.AdminByUsername(username, ctx)
 		if err != nil {
 			log.Println(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			writeLoginError(http.StatusUnauthorized, "Username atau password salah")
 			return
 		}
 
 		// TODO: ganti pake hash + insert new admin kalo ada waktu
-		w.Header().Set("Content-Type", "application/json")
-		if admin.Password == password {
-			adminDto := api.ConstructAdminDTO(*admin)
-			response := api.AdminLoginResponse{
-				Success: true,
-				Admin:   adminDto,
-			}
-			if err := json.NewEncoder(w).Encode(response); err != nil {
-				log.Println(err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		} else {
-			w.Write([]byte(
-				`{
-					\"success\": false,
-					\"error\": \"Username dan password harus diisi\"
-				}`,
-			))
+		if admin.Password != password {
+			writeLoginError(http.StatusUnauthorized, "Username atau password salah")
+			return
+		}
+
+		token, err := h.auth.GenerateJWT(admin.Id)
+		if err != nil {
+			log.Println(err)
+			writeLoginError(http.StatusInternalServerError, "Gagal membuat sesi login")
+			return
+		}
+
+		adminDto := api.ConstructAdminDTO(*admin)
+		response := api.AdminLoginResponse{
+			Success: true,
+			Admin:   &adminDto,
+			Token:   token,
+		}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 	}
 }
@@ -276,7 +278,6 @@ func (h *Handler) handleToggleLocationStatus() http.HandlerFunc {
 		if err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-			w.Write([]byte("{\"success\": true}"))
 			return
 		}
 		w.Write([]byte("{\"success\": true}"))
@@ -326,7 +327,7 @@ func (h *Handler) handleForceLogout() http.HandlerFunc {
 		userId := r.PathValue("userId")
 
 		type Payload struct {
-			Reason string `json:"isActive"`
+			Reason string `json:"reason"`
 		}
 
 		var reqBody Payload

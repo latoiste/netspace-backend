@@ -17,6 +17,11 @@ type Location struct {
 	IsActive  bool      `json:"isActive"`
 	QrToken   string    `json:"qrToken"`
 	QrLabel   string    `json:"qrLabel"`
+	// Geofence center + radius (meters). Zeroed lat/lng means "not configured",
+	// which the frontend treats as geofencing disabled for this venue.
+	Latitude       float64 `json:"latitude"`
+	Longitude      float64 `json:"longitude"`
+	GeofenceRadius int     `json:"geofenceRadius"`
 }
 
 func (l *Location) FormatTimezoneLabel() string {
