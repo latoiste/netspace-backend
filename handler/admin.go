@@ -12,13 +12,19 @@ import (
 	"github.com/latoiste/netspace/api"
 )
 
+// wib is the app's reporting timezone (Asia/Jakarta, UTC+7, no DST). Analytics
+// buckets (per-hour, per-day) are computed in WIB so they match what the café
+// admin actually sees — independent of the server's timezone (UTC in prod).
+// A fixed offset avoids depending on tzdata being present in the image.
+var wib = time.FixedZone("WIB", 7*60*60)
+
 func (h *Handler) handleAnalyticsMetrics() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		analytics := make([]api.AnalyticsDTO, 0, 3)
 
-		now := time.Now()
+		now := time.Now().In(wib)
 
 		todayStart := time.Date(
 			now.Year(),
@@ -91,7 +97,7 @@ func (h *Handler) handleHourlyCheckIn() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		now := time.Now()
+		now := time.Now().In(wib)
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
