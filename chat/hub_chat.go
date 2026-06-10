@@ -73,47 +73,39 @@ func (h *Hub) handleSendPrivateMsg(msg model.PrivateMessage) {
 }
 
 func (h *Hub) handleSendPublicMsg(msg model.PublicMessage) {
-	sender, ok := h.Clients[msg.SenderId]
-	if !ok {
-		log.Println("Sender id not found")
-		return
-	}
-
 	newMsg := api.NewPublicMessage{
 		MessageId:   msg.MessageId,
 		SenderId:    msg.SenderId,
-		SenderName:  sender.Name,
-		SenderEmoji: sender.Emoji,
+		SenderName:  msg.SenderName,
+		SenderEmoji: msg.SenderEmoji,
 		Message:     msg.Message,
 		Timestamp:   msg.Timestamp.Local().Format("15:04"),
+		IsAdmin:     msg.IsAdmin,
 	}
-
-	senderMsg := newMsg
-	senderMsg.IsMine = true
-
-	otherMsg := newMsg
-	otherMsg.IsMine = false
+	if msg.IsAdmin {
+		newMsg.SenderId = msg.AdminId
+	}
 
 	h.persistPublicMsg <- msg
 
-	err := sender.sendEvent("new_public_message", senderMsg)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
 	for _, client := range h.Clients {
-		if client.UserId == msg.SenderId {
-			continue
-		}
 		// Skip clients who have blocked the sender.
-		if h.isBlocked(client.UserId, msg.SenderId) {
+		if !msg.IsAdmin && h.isBlocked(client.UserId, msg.SenderId) {
 			continue
 		}
-		err = client.sendEvent("new_public_message", otherMsg)
+		clientMsg := newMsg
+		clientMsg.IsMine = !msg.IsAdmin && client.UserId == msg.SenderId
+		err := client.sendEvent("new_public_message", clientMsg)
 		if err != nil {
 			log.Println(err)
 			continue
+		}
+	}
+	for _, moderator := range h.Moderators {
+		moderatorMsg := newMsg
+		moderatorMsg.IsMine = msg.IsAdmin && moderator.UserId == msg.AdminId
+		if err := moderator.sendEvent("new_public_message", moderatorMsg); err != nil {
+			log.Println(err)
 		}
 	}
 }

@@ -24,6 +24,10 @@ type PrivateMessage struct {
 
 type PublicMessage struct {
 	BaseMessage
+	AdminId     string
+	SenderName  string
+	SenderEmoji string
+	IsAdmin     bool
 }
 
 type GroupMessage struct {

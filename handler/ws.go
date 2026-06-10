@@ -32,15 +32,15 @@ func (h *Handler) handleWs(manager *chat.Manager) http.HandlerFunc {
 			return
 		}
 
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Println(err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		locationSlug := params.Get("locationSlug")
+		actorType := claim.ActorType
+		if actorType == "" {
+			actorType = "user"
+		}
+		if actorType == "admin" && claim.LocationSlug != locationSlug {
+			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
-
-		userId := claim.UserId
-		locationSlug := params.Get("locationSlug")
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
@@ -48,8 +48,14 @@ func (h *Handler) handleWs(manager *chat.Manager) http.HandlerFunc {
 		locationId, err := h.repo.LocationIdBySlug(locationSlug, ctx)
 		if err != nil {
 			log.Println(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			conn.Close()
+			http.Error(w, "Location not found", http.StatusNotFound)
+			return
+		}
+
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -58,7 +64,28 @@ func (h *Handler) handleWs(manager *chat.Manager) http.HandlerFunc {
 		ctx2, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
 
-		user, err := h.repo.UserById(userId, ctx2)
+		if actorType == "admin" {
+			admin, err := h.repo.AdminById(claim.UserId, ctx2)
+			if err != nil || admin.LocationSlug != locationSlug {
+				log.Println(err)
+				conn.Close()
+				return
+			}
+			client := chat.NewAdminClient(
+				hub,
+				conn,
+				admin.Id,
+				admin.Name,
+				admin.Avatar,
+				locationSlug,
+			)
+			hub.AddModerator(client)
+			go client.ReadPump()
+			go client.WritePump()
+			return
+		}
+
+		user, err := h.repo.UserById(claim.UserId, ctx2)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -69,9 +96,9 @@ func (h *Handler) handleWs(manager *chat.Manager) http.HandlerFunc {
 		client := chat.NewClient(
 			hub,
 			conn,
-			userId,
+			claim.UserId,
 			user.Name,
-			api.EmojiForUser(userId),
+			api.EmojiForUser(claim.UserId),
 			locationSlug,
 		)
 
@@ -90,7 +117,7 @@ func (h *Handler) handleWs(manager *chat.Manager) http.HandlerFunc {
 		// "disappears" even though their socket is live again.
 		ctx3, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
-		if err := h.repo.UpdateUserIsActive(userId, true, ctx3); err != nil {
+		if err := h.repo.UpdateUserIsActive(claim.UserId, true, ctx3); err != nil {
 			log.Println("failed to mark user active on connect:", err)
 		}
 

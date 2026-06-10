@@ -11,7 +11,9 @@ import (
 )
 
 type Claim struct {
-	UserId string `json:"userId"`
+	UserId       string `json:"userId"`
+	ActorType    string `json:"actorType"`
+	LocationSlug string `json:"locationSlug,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -25,9 +27,11 @@ func NewAuth(jwtKey []byte) *Auth {
 	}
 }
 
-func (a *Auth) GenerateJWT(userId string) (string, error) {
+func (a *Auth) generateJWT(userId string, actorType string, locationSlug string) (string, error) {
 	claim := Claim{
-		UserId: userId,
+		UserId:       userId,
+		ActorType:    actorType,
+		LocationSlug: locationSlug,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 8)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -44,6 +48,14 @@ func (a *Auth) GenerateJWT(userId string) (string, error) {
 		return "", err
 	}
 	return tokenString, nil
+}
+
+func (a *Auth) GenerateUserJWT(userId string) (string, error) {
+	return a.generateJWT(userId, "user", "")
+}
+
+func (a *Auth) GenerateAdminJWT(adminId string, locationSlug string) (string, error) {
+	return a.generateJWT(adminId, "admin", locationSlug)
 }
 
 func (a *Auth) VerifyToken(tokenString string) (*jwt.Token, error) {

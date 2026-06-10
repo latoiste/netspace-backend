@@ -42,7 +42,7 @@ func (h *Handler) handleCheckin() http.HandlerFunc {
 		}
 
 		userId := model.GenerateUserId()
-		token, err := h.auth.GenerateJWT(userId)
+		token, err := h.auth.GenerateUserJWT(userId)
 		if err != nil {
 			log.Println("Error generating token", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

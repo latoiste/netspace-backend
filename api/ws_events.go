@@ -37,6 +37,12 @@ type NewPublicMessage struct {
 	Message     string `json:"message"`
 	Timestamp   string `json:"timestamp"`
 	IsMine      bool   `json:"isMine"`
+	IsAdmin     bool   `json:"isAdmin"`
+}
+
+type PublicMessagesCleared struct {
+	LocationSlug string `json:"locationSlug"`
+	DeletedCount int64  `json:"deletedCount"`
 }
 
 type MessageSent struct {

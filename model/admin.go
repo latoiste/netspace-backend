@@ -5,13 +5,15 @@ import (
 )
 
 type Admin struct {
-	Id       string
-	Username string
-	Password string
-	Role     string
-	Plan     string
-	Avatar   string
-	Name     string
+	Id           string
+	Username     string
+	Password     string
+	Role         string
+	Plan         string
+	Avatar       string
+	Name         string
+	LocationId   int
+	LocationSlug string
 }
 
 type ActiveSession struct {

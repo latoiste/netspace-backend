@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/latoiste/netspace/api"
+	"github.com/latoiste/netspace/model"
 )
 
 // wib is the app's reporting timezone (Asia/Jakarta, UTC+7, no DST). Analytics
@@ -17,6 +18,14 @@ import (
 // admin actually sees — independent of the server's timezone (UTC in prod).
 // A fixed offset avoids depending on tzdata being present in the image.
 var wib = time.FixedZone("WIB", 7*60*60)
+
+func adminSessionForLocation(r *http.Request, locationSlug string) (model.SessionData, bool) {
+	session, ok := r.Context().Value("SessionData").(model.SessionData)
+	if !ok || session.ActorType != "admin" || session.LocationSlug != locationSlug {
+		return model.SessionData{}, false
+	}
+	return session, true
+}
 
 func (h *Handler) handleAnalyticsMetrics() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -170,7 +179,7 @@ func (h *Handler) handleAdminLogin() http.HandlerFunc {
 			return
 		}
 
-		token, err := h.auth.GenerateJWT(admin.Id)
+		token, err := h.auth.GenerateAdminJWT(admin.Id, admin.LocationSlug)
 		if err != nil {
 			log.Println(err)
 			writeLoginError(http.StatusInternalServerError, "Gagal membuat sesi login")
@@ -219,6 +228,10 @@ func (h *Handler) handleLocationDetail() http.HandlerFunc {
 		defer r.Body.Close()
 		w.Header().Set("Content-Type", "application/json")
 		locationSlug := r.PathValue("slug")
+		if _, ok := adminSessionForLocation(r, locationSlug); !ok {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
@@ -256,6 +269,10 @@ func (h *Handler) handleToggleLocationStatus() http.HandlerFunc {
 		defer r.Body.Close()
 		w.Header().Set("Content-Type", "application/json")
 		locationSlug := r.PathValue("slug")
+		if _, ok := adminSessionForLocation(r, locationSlug); !ok {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
 
 		type Payload struct {
 			IsActive bool `json:"isActive"`
@@ -295,6 +312,10 @@ func (h *Handler) handleActiveUsers() http.HandlerFunc {
 		defer r.Body.Close()
 		w.Header().Set("Content-Type", "application/json")
 		locationSlug := r.PathValue("slug")
+		if _, ok := adminSessionForLocation(r, locationSlug); !ok {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
 
 		ctx1, cancel := context.WithTimeout(context.Background(), time.Second*2)
 		defer cancel()
@@ -323,6 +344,73 @@ func (h *Handler) handleActiveUsers() http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+	}
+}
+
+func (h *Handler) handleAdminPublicHistory() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		locationSlug := r.PathValue("slug")
+		session, ok := adminSessionForLocation(r, locationSlug)
+		if !ok {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), time.Second*3)
+		defer cancel()
+		locationId, err := h.repo.LocationIdBySlug(locationSlug, ctx)
+		if err != nil {
+			http.Error(w, "Location not found", http.StatusNotFound)
+			return
+		}
+		msgs, err := h.repo.RecentPublicMessages(
+			locationId,
+			publicHistoryLimit,
+			time.Now().Add(-publicHistoryWindow),
+			ctx,
+		)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		for i := range msgs {
+			msgs[i].IsMine = msgs[i].IsAdmin && msgs[i].SenderId == session.UserId
+		}
+		if err := json.NewEncoder(w).Encode(api.GetPublicHistoryResponse{Messages: msgs}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+}
+
+func (h *Handler) handleDeleteAllPublicMessages() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		locationSlug := r.PathValue("slug")
+		if _, ok := adminSessionForLocation(r, locationSlug); !ok {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), time.Second*5)
+		defer cancel()
+		locationId, err := h.repo.LocationIdBySlug(locationSlug, ctx)
+		if err != nil {
+			http.Error(w, "Location not found", http.StatusNotFound)
+			return
+		}
+		deletedCount, err := h.repo.DeletePublicMessagesByLocation(locationId, ctx)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		h.manager.BroadcastPublicMessagesCleared(locationSlug, deletedCount)
+		json.NewEncoder(w).Encode(map[string]any{
+			"success":      true,
+			"deletedCount": deletedCount,
+		})
 	}
 }
 

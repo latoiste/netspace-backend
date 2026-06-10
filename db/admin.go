@@ -11,15 +11,18 @@ import (
 func (r *Repository) AdminByUsername(username string, ctx context.Context) (*model.Admin, error) {
 	const query = `
 		SELECT 
-			"id",
-			username,
-			"password",
-			"role",
-			"plan",
-			"avatar",
-			"name"
-		FROM admins
-		WHERE username = $1
+			a."id",
+			a.username,
+			a."password",
+			a."role",
+			a."plan",
+			a."avatar",
+			a."name",
+			a.locationid,
+			l.slug
+		FROM admins a
+		JOIN locations l ON l.id = a.locationid
+		WHERE a.username = $1
 	`
 
 	row := r.db.QueryRowContext(
@@ -38,10 +41,47 @@ func (r *Repository) AdminByUsername(username string, ctx context.Context) (*mod
 		&admin.Plan,
 		&admin.Avatar,
 		&admin.Name,
+		&admin.LocationId,
+		&admin.LocationSlug,
 	); err != nil {
 		return nil, err
 	}
 
+	return &admin, nil
+}
+
+func (r *Repository) AdminById(adminId string, ctx context.Context) (*model.Admin, error) {
+	const query = `
+		SELECT
+			a."id",
+			a.username,
+			a."password",
+			a."role",
+			a."plan",
+			a."avatar",
+			a."name",
+			a.locationid,
+			l.slug
+		FROM admins a
+		JOIN locations l ON l.id = a.locationid
+		WHERE a.id = $1
+	`
+
+	row := r.db.QueryRowContext(ctx, query, adminId)
+	var admin model.Admin
+	if err := row.Scan(
+		&admin.Id,
+		&admin.Username,
+		&admin.Password,
+		&admin.Role,
+		&admin.Plan,
+		&admin.Avatar,
+		&admin.Name,
+		&admin.LocationId,
+		&admin.LocationSlug,
+	); err != nil {
+		return nil, err
+	}
 	return &admin, nil
 }
 

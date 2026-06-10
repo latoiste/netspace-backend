@@ -47,7 +47,7 @@ func (h *Handler) StartServer() {
 		r.Get("/locations/{slug}", h.handleLocation())
 
 		r.Group(func(r chi.Router) {
-			r.Use(mw.Auth(h.auth))
+			r.Use(mw.UserAuth(h.auth))
 			r.Get("/locations/{slug}/users", h.handleLocationUsers())
 			r.Get("/sessions/logout", h.handleLogout())
 
@@ -62,7 +62,7 @@ func (h *Handler) StartServer() {
 		r.Post("/admin/login", h.handleAdminLogin())
 
 		r.Route("/admin", func(r chi.Router) {
-			r.Use(mw.Auth(h.auth))
+			r.Use(mw.AdminAuth(h.auth))
 			r.Get("/dashboard/stats", h.handleAnalyticsMetrics())
 			r.Route("/analytics", func(r chi.Router) {
 				r.Get("/interests", h.handleTopInterests())
@@ -73,6 +73,8 @@ func (h *Handler) StartServer() {
 				r.Get("/{slug}", h.handleLocationDetail())
 				r.Put("/{slug}", h.handleToggleLocationStatus())
 				r.Get("/{slug}/users", h.handleActiveUsers())
+				r.Get("/{slug}/public-messages", h.handleAdminPublicHistory())
+				r.Delete("/{slug}/public-messages", h.handleDeleteAllPublicMessages())
 			})
 
 			r.Post("/users/{userId}/kick", h.handleForceLogout())

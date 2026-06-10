@@ -9,7 +9,7 @@ import (
 	"github.com/latoiste/netspace/model"
 )
 
-func (m *Middleware) Auth(a *auth.Auth) func(next http.Handler) http.Handler {
+func (m *Middleware) authForActor(a *auth.Auth, requiredActor string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tokenString, err := a.ExtractTokenFromHeader(r)
@@ -38,9 +38,21 @@ func (m *Middleware) Auth(a *auth.Auth) func(next http.Handler) http.Handler {
 				return
 			}
 
+			actorType := claim.ActorType
+			// Tokens issued before actorType was introduced are user sessions.
+			if actorType == "" {
+				actorType = "user"
+			}
+			if actorType != requiredActor {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
+
 			sessionData := model.SessionData{
-				UserId:      claim.UserId,
-				TokenString: tokenString,
+				UserId:       claim.UserId,
+				TokenString:  tokenString,
+				ActorType:    actorType,
+				LocationSlug: claim.LocationSlug,
 			}
 
 			ctx := context.WithValue(r.Context(), "SessionData", sessionData)
@@ -48,4 +60,12 @@ func (m *Middleware) Auth(a *auth.Auth) func(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+func (m *Middleware) UserAuth(a *auth.Auth) func(next http.Handler) http.Handler {
+	return m.authForActor(a, "user")
+}
+
+func (m *Middleware) AdminAuth(a *auth.Auth) func(next http.Handler) http.Handler {
+	return m.authForActor(a, "admin")
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +29,7 @@ type Client struct {
 	Name         string
 	Emoji        string
 	LocationSlug string
+	IsAdmin      bool
 
 	// closeOnce guards Send so it's closed exactly once. A client can be torn
 	// down from more than one spot in the hub's run() goroutine (e.g. evicted as
@@ -54,6 +56,12 @@ func NewClient(hub *Hub, conn *websocket.Conn, userId string, name string, emoji
 		Emoji:        emoji,
 		LocationSlug: locationSlug,
 	}
+}
+
+func NewAdminClient(hub *Hub, conn *websocket.Conn, adminId string, name string, emoji string, locationSlug string) *Client {
+	client := NewClient(hub, conn, adminId, name, emoji, locationSlug)
+	client.IsAdmin = true
+	return client
 }
 
 func (c *Client) ReadPump() {
@@ -87,7 +95,12 @@ func (c *Client) ReadPump() {
 		}
 
 		switch req.Event {
+		case "ping":
+			continue
 		case "send_message":
+			if c.IsAdmin {
+				continue
+			}
 			var data api.SendMessage
 			err := json.Unmarshal(req.Data, &data)
 			if err != nil {
@@ -106,11 +119,17 @@ func (c *Client) ReadPump() {
 				RecipientId: data.RecipientId,
 			}
 		case "typing_start":
+			if c.IsAdmin {
+				continue
+			}
 			msg := c.handleTypingRequest(req)
 			if msg != (api.TypingEvent{}) {
 				c.Hub.typingStart <- msg
 			}
 		case "typing_stop":
+			if c.IsAdmin {
+				continue
+			}
 			msg := c.handleTypingRequest(req)
 			if msg != (api.TypingEvent{}) {
 				c.Hub.typingStop <- msg
@@ -123,26 +142,47 @@ func (c *Client) ReadPump() {
 				continue
 			}
 
-			c.Hub.sendPublicMsg <- model.PublicMessage{
+			message := strings.TrimSpace(data.Message)
+			if message == "" || len([]rune(message)) > 500 {
+				continue
+			}
+			publicMessage := model.PublicMessage{
 				BaseMessage: model.BaseMessage{
 					MessageId:  model.GenerateMessageId(),
 					LocationId: c.Hub.locationId,
-					SenderId:   c.UserId,
-					Message:    data.Message,
+					Message:    message,
 					Timestamp:  time.Now().UTC(),
 				},
+				SenderName:  c.Name,
+				SenderEmoji: c.Emoji,
+				IsAdmin:     c.IsAdmin,
 			}
+			if c.IsAdmin {
+				publicMessage.AdminId = c.UserId
+			} else {
+				publicMessage.SenderId = c.UserId
+			}
+			c.Hub.sendPublicMsg <- publicMessage
 		case "public_typing_start":
+			if c.IsAdmin {
+				continue
+			}
 			msg := c.handlePublicTypingRequest(req)
 			if msg != (api.PublicUserTyping{}) {
 				c.Hub.publicTypingStart <- msg
 			}
 		case "public_typing_stop":
+			if c.IsAdmin {
+				continue
+			}
 			msg := c.handlePublicTypingRequest(req)
 			if msg != (api.PublicUserTyping{}) {
 				c.Hub.publicTypingStop <- msg
 			}
 		case "create_group":
+			if c.IsAdmin {
+				continue
+			}
 			var data api.CreateGroup
 			err := json.Unmarshal(req.Data, &data)
 			if err != nil {
@@ -169,6 +209,9 @@ func (c *Client) ReadPump() {
 			}
 			c.sendEvent("group_created", groupCreated)
 		case "invite_to_group":
+			if c.IsAdmin {
+				continue
+			}
 			var data api.InviteToGroup
 			err := json.Unmarshal(req.Data, &data)
 			if err != nil {
@@ -182,6 +225,9 @@ func (c *Client) ReadPump() {
 				userIds:   data.UserIds,
 			}
 		case "rename_group":
+			if c.IsAdmin {
+				continue
+			}
 			var data api.RenameGroup
 			err := json.Unmarshal(req.Data, &data)
 			if err != nil {
@@ -195,6 +241,9 @@ func (c *Client) ReadPump() {
 				name:    data.Name,
 			}
 		case "accept_group_invite":
+			if c.IsAdmin {
+				continue
+			}
 			var data api.GroupInviteResponse
 			err := json.Unmarshal(req.Data, &data)
 			if err != nil {
@@ -207,6 +256,9 @@ func (c *Client) ReadPump() {
 				userId:  c.UserId,
 			}
 		case "reject_group_invite":
+			if c.IsAdmin {
+				continue
+			}
 			var data api.GroupInviteResponse
 			err := json.Unmarshal(req.Data, &data)
 			if err != nil {
@@ -219,6 +271,9 @@ func (c *Client) ReadPump() {
 				userId:  c.UserId,
 			}
 		case "block_user":
+			if c.IsAdmin {
+				continue
+			}
 			var data api.BlockUser
 			err := json.Unmarshal(req.Data, &data)
 			if err != nil {
@@ -231,6 +286,9 @@ func (c *Client) ReadPump() {
 				blockedId: data.UserId,
 			}
 		case "unblock_user":
+			if c.IsAdmin {
+				continue
+			}
 			var data api.UnblockUser
 			err := json.Unmarshal(req.Data, &data)
 			if err != nil {
@@ -243,6 +301,9 @@ func (c *Client) ReadPump() {
 				blockedId: data.UserId,
 			}
 		case "mark_read":
+			if c.IsAdmin {
+				continue
+			}
 			var data api.MarkRead
 			err := json.Unmarshal(req.Data, &data)
 			if err != nil {
@@ -255,6 +316,9 @@ func (c *Client) ReadPump() {
 				senderId: data.SenderId,
 			}
 		case "leave_group":
+			if c.IsAdmin {
+				continue
+			}
 			var data api.LeaveGroup
 			err := json.Unmarshal(req.Data, &data)
 			if err != nil {
@@ -267,6 +331,9 @@ func (c *Client) ReadPump() {
 				userId:  c.UserId,
 			}
 		case "send_group_message":
+			if c.IsAdmin {
+				continue
+			}
 			var data api.SendGroupMessage
 			err := json.Unmarshal(req.Data, &data)
 			if err != nil {
@@ -285,6 +352,9 @@ func (c *Client) ReadPump() {
 				GroupId: data.GroupId,
 			}
 		case "notification_read":
+			if c.IsAdmin {
+				continue
+			}
 			var data api.NotificationRead
 			err := json.Unmarshal(req.Data, &data)
 			if err != nil {
@@ -294,6 +364,9 @@ func (c *Client) ReadPump() {
 
 			c.Hub.notificationRead <- data
 		case "dismiss_notification":
+			if c.IsAdmin {
+				continue
+			}
 			var data api.NotificationDismiss
 			err := json.Unmarshal(req.Data, &data)
 			if err != nil {
@@ -383,6 +456,9 @@ func (c *Client) handlePublicTypingRequest(req api.WsEvent) api.PublicUserTyping
 }
 
 func (c *Client) handleClientDisconnect() {
+	if c.IsAdmin {
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
 

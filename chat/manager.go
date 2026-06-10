@@ -1,9 +1,11 @@
 package chat
 
 import (
+	"encoding/json"
 	"log"
 	"sync"
 
+	"github.com/latoiste/netspace/api"
 	"github.com/latoiste/netspace/db"
 )
 
@@ -15,6 +17,27 @@ type Manager struct {
 	mu   sync.RWMutex
 	Hubs map[string]*Hub
 	repo *db.Repository
+}
+
+func (m *Manager) BroadcastPublicMessagesCleared(locationSlug string, deletedCount int64) {
+	m.mu.RLock()
+	hub := m.Hubs[locationSlug]
+	m.mu.RUnlock()
+	if hub == nil {
+		return
+	}
+	data, err := json.Marshal(api.PublicMessagesCleared{
+		LocationSlug: locationSlug,
+		DeletedCount: deletedCount,
+	})
+	if err != nil {
+		log.Println("marshal public_messages_cleared:", err)
+		return
+	}
+	hub.broadcast <- api.WsEvent{
+		Event: "public_messages_cleared",
+		Data:  data,
+	}
 }
 
 func NewManager(repo *db.Repository) *Manager {

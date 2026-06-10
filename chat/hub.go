@@ -11,12 +11,14 @@ import (
 )
 
 type Hub struct {
-	Clients    map[string]*Client
-	repo       *db.Repository
-	groups     map[string]*Group
-	Register   chan *Client
-	unregister chan *Client
-	locationId int
+	Clients       map[string]*Client
+	Moderators    map[string]*Client
+	repo          *db.Repository
+	groups        map[string]*Group
+	Register      chan *Client
+	registerAdmin chan *Client
+	unregister    chan *Client
+	locationId    int
 
 	// onlineCount mirrors len(Clients) — the number of users with a live socket
 	// right now. It's written only from run() (the map's single owner) and read
@@ -79,10 +81,12 @@ type Hub struct {
 func NewHub(repo *db.Repository, locationId int) *Hub {
 	return &Hub{
 		Clients:                 make(map[string]*Client),
+		Moderators:              make(map[string]*Client),
 		locationId:              locationId,
 		repo:                    repo,
 		groups:                  make(map[string]*Group),
 		Register:                make(chan *Client),
+		registerAdmin:           make(chan *Client),
 		unregister:              make(chan *Client),
 		broadcast:               make(chan api.WsEvent),
 		sendPrivateMsg:          make(chan model.PrivateMessage),
@@ -130,6 +134,9 @@ func (h *Hub) run() {
 		case client := <-h.Register:
 			h.Clients[client.UserId] = client
 			h.onlineCount.Store(int64(len(h.Clients)))
+
+		case client := <-h.registerAdmin:
+			h.Moderators[client.UserId] = client
 
 		case client := <-h.unregister:
 			err := h.removeClient(client)
@@ -222,6 +229,17 @@ func (h *Hub) fanout(event api.WsEvent) {
 			log.Printf("fanout: skipping backlogged client %s", uid)
 		}
 	}
+	for uid, client := range h.Moderators {
+		select {
+		case client.Send <- message:
+		default:
+			log.Printf("fanout: skipping backlogged moderator %s", uid)
+		}
+	}
+}
+
+func (h *Hub) AddModerator(client *Client) {
+	h.registerAdmin <- client
 }
 
 // OnlineCount returns the number of users with a live socket on this hub right
@@ -251,6 +269,15 @@ func (h *Hub) AddClient(client *Client, user *model.User) error {
 }
 
 func (h *Hub) removeClient(client *Client) error {
+	if client.IsAdmin {
+		if current, ok := h.Moderators[client.UserId]; !ok || current != client {
+			client.closeSend()
+			return nil
+		}
+		delete(h.Moderators, client.UserId)
+		client.closeSend()
+		return nil
+	}
 	// A user can briefly hold two live sockets — a reconnect after a network
 	// blip, or a second browser tab. Registration overwrites h.Clients[UserId]
 	// with the newest socket, so an older socket's *delayed* unregister must not

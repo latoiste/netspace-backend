@@ -47,10 +47,11 @@ func (r *Repository) InsertPublicMessage(publicMsg model.PublicMessage, ctx cont
 			messageId,
 			locationId,
 			senderId,
+			adminId,
 			"message",
 			"timestamp"
 		)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), $5, $6)
 	`
 
 	result, err := r.db.ExecContext(
@@ -59,6 +60,7 @@ func (r *Repository) InsertPublicMessage(publicMsg model.PublicMessage, ctx cont
 		publicMsg.MessageId,
 		publicMsg.LocationId,
 		publicMsg.SenderId,
+		publicMsg.AdminId,
 		publicMsg.Message,
 		publicMsg.Timestamp,
 	)
@@ -242,9 +244,17 @@ func (r *Repository) AllPrivateMessages(senderId string, ctx context.Context) ([
 // timeline stays intact for everyone still in the room.
 func (r *Repository) RecentPublicMessages(locationId int, limit int, since time.Time, ctx context.Context) ([]api.PublicChatMessageDTO, error) {
 	const query = `
-		SELECT pm.messageid, pm.senderId, COALESCE(u.name, ''), pm."message", pm."timestamp"
+		SELECT
+			pm.messageid,
+			COALESCE(pm.senderId, pm.adminId),
+			COALESCE(u.name, a.name, ''),
+			CASE WHEN pm.adminId IS NOT NULL THEN COALESCE(a.avatar, '') ELSE '' END,
+			pm.adminId IS NOT NULL,
+			pm."message",
+			pm."timestamp"
 		FROM PublicMessages pm
 		LEFT JOIN Users u ON u.id = pm.senderId
+		LEFT JOIN Admins a ON a.id = pm.adminId
 		WHERE pm.locationId = $1 AND pm."timestamp" >= $2
 		ORDER BY pm."timestamp" DESC
 		LIMIT $3;
@@ -258,18 +268,24 @@ func (r *Repository) RecentPublicMessages(locationId int, limit int, since time.
 
 	messages := make([]api.PublicChatMessageDTO, 0, limit)
 	for rows.Next() {
-		var id, senderId, name, message string
+		var id, senderId, name, adminAvatar, message string
+		var isAdmin bool
 		var ts time.Time
-		if err := rows.Scan(&id, &senderId, &name, &message, &ts); err != nil {
+		if err := rows.Scan(&id, &senderId, &name, &adminAvatar, &isAdmin, &message, &ts); err != nil {
 			return nil, err
+		}
+		emoji := api.EmojiForUser(senderId)
+		if isAdmin {
+			emoji = adminAvatar
 		}
 		messages = append(messages, api.PublicChatMessageDTO{
 			Id:          id,
 			SenderId:    senderId,
 			SenderName:  name,
-			SenderEmoji: api.EmojiForUser(senderId),
+			SenderEmoji: emoji,
 			Message:     message,
 			Timestamp:   ts.Local().Format("15:04"),
+			IsAdmin:     isAdmin,
 		})
 	}
 
@@ -279,6 +295,14 @@ func (r *Repository) RecentPublicMessages(locationId int, limit int, since time.
 	}
 
 	return messages, nil
+}
+
+func (r *Repository) DeletePublicMessagesByLocation(locationId int, ctx context.Context) (int64, error) {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM PublicMessages WHERE locationId = $1`, locationId)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 // DeletePublicMessagesBefore is the public-room retention sweep: it removes

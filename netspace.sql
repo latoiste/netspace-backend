@@ -135,8 +135,14 @@ CREATE TABLE Admins (
 	"role" TEXT,
 	"plan" TEXT,
 	"avatar" TEXT,
-	"name" TEXT
+	"name" TEXT,
+	locationId INT REFERENCES Locations(id)
 );
+
+ALTER TABLE Admins ADD COLUMN IF NOT EXISTS locationId INT REFERENCES Locations(id);
+ALTER TABLE PublicMessages ADD COLUMN IF NOT EXISTS adminId TEXT REFERENCES Admins(id);
+CREATE INDEX IF NOT EXISTS idx_publicmessages_location_timestamp
+	ON PublicMessages(locationId, "timestamp" DESC);
 
 INSERT INTO Interests (emoji, label)
 VALUES ('☕', 'Kopi'),
@@ -174,6 +180,22 @@ VALUES
   ('adm-kpl', 'kopiloka', 'admin123', 'Partner', 'Pro Plan', '☕', 'Kopiloka Sudirman'),
   ('adm-kkt', 'koktong', 'admin123', 'Partner', 'Pro Plan', '🍵', 'Koktong'),
   ('adm-kbg', 'kopibraga', 'admin123', 'Partner', 'Pro Plan', '☕', 'Kopi Braga');
+
+UPDATE Admins SET locationId = (SELECT id FROM Locations WHERE slug = 'kopiloka')
+	WHERE id = 'adm-kpl';
+UPDATE Admins SET locationId = (SELECT id FROM Locations WHERE slug = 'koktong')
+	WHERE id = 'adm-kkt';
+UPDATE Admins SET locationId = (SELECT id FROM Locations WHERE slug = 'kopi-braga')
+	WHERE id = 'adm-kbg';
+UPDATE Admins AS a SET locationId = l.id
+	FROM Locations AS l
+	WHERE a.locationId IS NULL
+		AND replace(lower(a.username), '-', '') = replace(lower(l.slug), '-', '');
+ALTER TABLE Admins ALTER COLUMN locationId SET NOT NULL;
+
+ALTER TABLE PublicMessages DROP CONSTRAINT IF EXISTS publicmessages_sender_check;
+ALTER TABLE PublicMessages ADD CONSTRAINT publicmessages_sender_check
+	CHECK ((senderId IS NOT NULL)::int + (adminId IS NOT NULL)::int = 1);
 
 -- Query bantu saat dev (uncomment manual kalau perlu):
 -- SELECT * FROM Locations;

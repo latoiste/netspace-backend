@@ -38,10 +38,11 @@ type ActiveUserDTO struct {
 }
 
 type AdminDTO struct {
-	Name   string `json:"name"`
-	Role   string `json:"role"`
-	Plan   string `json:"plan"`
-	Avatar string `json:"avatar"`
+	Name         string `json:"name"`
+	Role         string `json:"role"`
+	Plan         string `json:"plan"`
+	Avatar       string `json:"avatar"`
+	LocationSlug string `json:"locationSlug"`
 }
 
 type NotificationDTO struct {
@@ -103,10 +104,11 @@ func ConstructUserDTO(user model.User) UserDTO {
 
 func ConstructAdminDTO(admin model.Admin) AdminDTO {
 	return AdminDTO{
-		Name:   admin.Name,
-		Role:   admin.Role,
-		Plan:   admin.Plan,
-		Avatar: admin.Avatar,
+		Name:         admin.Name,
+		Role:         admin.Role,
+		Plan:         admin.Plan,
+		Avatar:       admin.Avatar,
+		LocationSlug: admin.LocationSlug,
 	}
 }
 
@@ -211,6 +213,7 @@ type PublicChatMessageDTO struct {
 	Message     string `json:"message"`
 	Timestamp   string `json:"timestamp"`
 	IsMine      bool   `json:"isMine"`
+	IsAdmin     bool   `json:"isAdmin"`
 }
 
 type GroupChatMessageDTO struct {
