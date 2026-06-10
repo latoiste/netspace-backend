@@ -118,7 +118,7 @@ go build -o netspace . && ./netspace
 
 - The full schema + seed is in **`netspace.sql`** (safe to re‑run; migrations use `ADD COLUMN IF NOT EXISTS`).
 - **Seeded venues:** `kopiloka`, `koktong`, `kopi-braga` (with demo coordinates).
-- **Seeded admins (DEV ONLY):** username = the café slug, password = `admin123` (e.g. `kopiloka` / `admin123`). **Change these in production.**
+- **Seeded admins (DEV / DEMO ONLY):** password is `admin123` for all. Usernames: `kopiloka`, `koktong`, `kopibraga` (log in via the frontend at `/<slug>/admin/login`). **Change these in production.**
 
 ---
 
